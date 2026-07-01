@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Notification, NotificationDocument } from './notification.schema';
@@ -24,11 +24,21 @@ export class NotificationsService {
   }
 
   async findOne(id: string): Promise<Notification> {
-    return this.notificationModel.findById(id).exec();
+    const notification = await this.notificationModel.findById(id).exec();
+    if (!notification) {
+      throw new NotFoundException(`Notification #${id} not found`);
+    }
+    return notification;
   }
 
   async markAsRead(id: string): Promise<Notification> {
-    return this.notificationModel.findByIdAndUpdate(id, { read: true }, { new: true }).exec();
+    const notification = await this.notificationModel
+      .findByIdAndUpdate(id, { read: true }, { new: true })
+      .exec();
+    if (!notification) {
+      throw new NotFoundException(`Notification #${id} not found`);
+    }
+    return notification;
   }
 
   async markAllAsRead(): Promise<{ modifiedCount: number }> {
@@ -36,7 +46,11 @@ export class NotificationsService {
   }
 
   async remove(id: string): Promise<Notification> {
-    return this.notificationModel.findByIdAndDelete(id).exec();
+    const notification = await this.notificationModel.findByIdAndDelete(id).exec();
+    if (!notification) {
+      throw new NotFoundException(`Notification #${id} not found`);
+    }
+    return notification;
   }
 
   async clearAll(): Promise<{ deletedCount: number }> {

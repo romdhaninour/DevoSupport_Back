@@ -87,7 +87,7 @@ export class UsersService {
 
   // Restore archived user
   async restore(id: string): Promise<User> {
-    return this.update(id, { status: Status.ACTIVE });
+    return this.update(id, { status: Status.INACTIVE });
   }
 
   // Hard delete
