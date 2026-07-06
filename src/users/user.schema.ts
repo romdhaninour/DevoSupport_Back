@@ -29,6 +29,12 @@ export class User {
   @Prop({ type: String })
   profilePicture: string;
 
+  @Prop({ type: String })
+  phone?: string;
+
+  @Prop({ type: String })
+  bio?: string;
+
   @Prop({ type: String, enum: Role, required: true })
   role: Role;
 
