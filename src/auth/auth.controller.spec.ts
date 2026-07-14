@@ -9,6 +9,7 @@ describe('AuthController', () => {
 
   const mockUser = {
     _id: '507f1f77bcf86cd799439011',
+    userId: '507f1f77bcf86cd799439011',
     nom: 'Doe',
     prenom: 'John',
     email: 'john.doe@example.com',
@@ -66,13 +67,14 @@ describe('AuthController', () => {
         user: {
           ...mockUser,
           token: mockToken,
+          userId: mockUser._id,
         },
       };
 
       const result = await controller.googleLoginCallback(mockReq as any);
 
       expect(result).toEqual({
-        url: `http://localhost:4200/auth/callback?token=${mockToken}&status=${mockUser.status}&role=${mockUser.role}&profilePicture=${encodeURIComponent(mockUser.profilePicture || '')}&nom=${encodeURIComponent(mockUser.nom || '')}&prenom=${encodeURIComponent(mockUser.prenom || '')}&email=${encodeURIComponent(mockUser.email || '')}`,
+        url: `http://localhost:4200/auth/callback?token=${mockToken}&status=${mockUser.status}&role=${mockUser.role}&profilePicture=${encodeURIComponent(mockUser.profilePicture || '')}&nom=${encodeURIComponent(mockUser.nom || '')}&prenom=${encodeURIComponent(mockUser.prenom || '')}&email=${encodeURIComponent(mockUser.email || '')}&userId=${encodeURIComponent(mockUser._id || '')}`,
       });
     });
 
@@ -89,6 +91,7 @@ describe('AuthController', () => {
 
       expect(result.url).toContain('profilePicture=');
       expect(result.url).not.toContain('profilePicture=null');
+      expect(result.url).toContain('userId=');
     });
 
     it('should handle missing nom gracefully', async () => {
@@ -104,6 +107,7 @@ describe('AuthController', () => {
 
       expect(result.url).toContain('nom=');
       expect(result.url).not.toContain('nom=null');
+      expect(result.url).toContain('userId=');
     });
 
     it('should handle missing prenom gracefully', async () => {
@@ -119,6 +123,7 @@ describe('AuthController', () => {
 
       expect(result.url).toContain('prenom=');
       expect(result.url).not.toContain('prenom=null');
+      expect(result.url).toContain('userId=');
     });
 
     it('should handle missing email gracefully', async () => {
@@ -134,6 +139,7 @@ describe('AuthController', () => {
 
       expect(result.url).toContain('email=');
       expect(result.url).not.toContain('email=null');
+      expect(result.url).toContain('userId=');
     });
   });
 

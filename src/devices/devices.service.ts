@@ -1,9 +1,21 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Device, DeviceDocument, DeviceStatus, DeviceType } from './device.schema';
+import {
+  Device,
+  DeviceDocument,
+  DeviceStatus,
+  DeviceType,
+} from './device.schema';
 import { UsersService } from '../users/users.service';
 import { Role } from '../users/user.schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationType, NotificationRecipientRole } from '../notifications/notification.schema';
 import * as ExcelJS from 'exceljs';
 
 export function normalizeDeviceStatus(rawValue: string): DeviceStatus | null {
@@ -13,7 +25,12 @@ export function normalizeDeviceStatus(rawValue: string): DeviceStatus | null {
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '');
 
-  if (normalized === '' || normalized === 'available' || normalized === 'disponible' || normalized === 'dispo') {
+  if (
+    normalized === '' ||
+    normalized === 'available' ||
+    normalized === 'disponible' ||
+    normalized === 'dispo'
+  ) {
     return 'available';
   }
   if (
@@ -67,12 +84,16 @@ export interface CreateDeviceDto {
 @Injectable()
 export class DevicesService {
   constructor(
-    @InjectModel(Device.name) private readonly deviceModel: Model<DeviceDocument>,
+    @InjectModel(Device.name)
+    private readonly deviceModel: Model<DeviceDocument>,
     private readonly usersService: UsersService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(createDeviceDto: CreateDeviceDto): Promise<Device> {
-    const status = normalizeDeviceStatus(createDeviceDto.status || 'available') || 'available';
+    const status =
+      normalizeDeviceStatus(createDeviceDto.status || 'available') ||
+      'available';
     const payload = {
       ...createDeviceDto,
       status,
@@ -86,7 +107,18 @@ export class DevicesService {
     return createdDevice.save();
   }
 
-  async findAll(page?: string, limit?: string, search?: string): Promise<{ devices: Device[]; total: number; page: number; limit: number }> {
+  async findAll(
+    page?: string,
+    limit?: string,
+    search?: string,
+    status?: string,
+    type?: string,
+  ): Promise<{
+    devices: Device[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
     const skip = (pageNum - 1) * limitNum;
@@ -102,6 +134,14 @@ export class DevicesService {
       ]);
     }
 
+    if (status && status !== 'all') {
+      query = query.where({ status });
+    }
+
+    if (type && type !== 'all') {
+      query = query.where({ type });
+    }
+
     const [devices, total] = await Promise.all([
       query.clone().sort({ createdAt: -1 }).skip(skip).limit(limitNum).exec(),
       query.clone().countDocuments().exec(),
@@ -110,7 +150,19 @@ export class DevicesService {
     return { devices, total, page: pageNum, limit: limitNum };
   }
 
-  async findAssigned(userId: string, role: Role, page?: string, limit?: string, search?: string, forUserId?: string): Promise<{ devices: Device[]; total: number; page: number; limit: number }> {
+  async findAssigned(
+    userId: string,
+    role: Role,
+    page?: string,
+    limit?: string,
+    search?: string,
+    forUserId?: string,
+  ): Promise<{
+    devices: Device[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
     const skip = (pageNum - 1) * limitNum;
@@ -151,7 +203,11 @@ export class DevicesService {
     return device;
   }
 
-  async findOneForUser(userId: string, role: Role, id: string): Promise<Device> {
+  async findOneForUser(
+    userId: string,
+    role: Role,
+    id: string,
+  ): Promise<Device> {
     const device = await this.findOne(id);
 
     if (role === Role.CONSULTANT) {
@@ -163,43 +219,83 @@ export class DevicesService {
     return device;
   }
 
-  async update(id: string, updateDeviceDto: Partial<CreateDeviceDto>): Promise<Device> {
-    const device = await this.deviceModel.findByIdAndUpdate(id, updateDeviceDto, { returnDocument: 'after' }).exec();
+  async update(
+    id: string,
+    updateDeviceDto: Partial<CreateDeviceDto>,
+  ): Promise<Device> {
+    const device = await this.deviceModel
+      .findByIdAndUpdate(id, updateDeviceDto, { returnDocument: 'after' })
+      .exec();
     if (!device) {
       throw new NotFoundException('Device not found');
     }
     return device;
   }
 
-  async updateStatus(id: string, updateStatusDto: { status: DeviceStatus }): Promise<Device> {
+  async updateStatus(
+    id: string,
+    updateStatusDto: { status: DeviceStatus },
+  ): Promise<Device> {
     const device = await this.deviceModel.findById(id).exec();
     if (!device) {
       throw new NotFoundException('Device not found');
     }
 
     const transitionAllowed =
-      (device.status === 'available' && updateStatusDto.status === 'maintenance') ||
-      (device.status === 'maintenance' && updateStatusDto.status === 'available');
+      (device.status === 'available' &&
+        updateStatusDto.status === 'maintenance') ||
+      (device.status === 'maintenance' &&
+        updateStatusDto.status === 'available') ||
+      (device.status === 'assigned' &&
+        updateStatusDto.status === 'maintenance');
 
     if (!transitionAllowed) {
-      throw new BadRequestException('Only available <-> maintenance transitions are allowed from this action');
+      throw new BadRequestException(
+        'Only available <-> maintenance transitions are allowed from this action',
+      );
     }
 
-    const updated = await this.deviceModel.findByIdAndUpdate(id, {
-      status: updateStatusDto.status,
-      assignedTo: updateStatusDto.status === 'available' ? null : device.assignedTo,
-      assignedAt: updateStatusDto.status === 'available' ? null : device.assignedAt,
-      assignedBy: updateStatusDto.status === 'available' ? null : device.assignedBy,
-    }, { returnDocument: 'after' }).exec();
+    const updated = await this.deviceModel
+      .findByIdAndUpdate(
+        id,
+        {
+          status: updateStatusDto.status,
+          assignedTo:
+            updateStatusDto.status === 'available' ? null : device.assignedTo,
+          assignedAt:
+            updateStatusDto.status === 'available' ? null : device.assignedAt,
+          assignedBy:
+            updateStatusDto.status === 'available' ? null : device.assignedBy,
+        },
+        { returnDocument: 'after' },
+      )
+      .exec();
 
     if (!updated) {
       throw new NotFoundException('Device not found');
     }
 
+    // Create notification
+    try {
+      await this.notificationsService.create({
+        message: `Device "${device.name}" status changed to ${updateStatusDto.status}`,
+        type: NotificationType.DEVICE_STATUS_CHANGED,
+        userEmail: device.email || '',
+        userName: device.owner || 'Unknown',
+        recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+      });
+    } catch (e) {
+      console.error('Failed to create device status notification', e);
+    }
+
     return updated;
   }
 
-  async allocateDevice(deviceId: string, consultantId: string, assignedBy?: string): Promise<Device> {
+  async allocateDevice(
+    deviceId: string,
+    consultantId: string,
+    assignedBy?: string,
+  ): Promise<Device> {
     try {
       const device = await this.deviceModel.findById(deviceId).exec();
       if (!device) {
@@ -207,7 +303,9 @@ export class DevicesService {
       }
 
       if (device.status !== 'available') {
-        throw new BadRequestException('Only available devices can be allocated');
+        throw new BadRequestException(
+          'Only available devices can be allocated',
+        );
       }
 
       let consultant;
@@ -219,24 +317,59 @@ export class DevicesService {
         }
       }
 
-      if (!consultant || (consultant.role !== Role.CONSULTANT && consultant.role !== Role.IT && consultant.role !== Role.ADMIN)) {
+      if (
+        !consultant ||
+        (consultant.role !== Role.CONSULTANT &&
+          consultant.role !== Role.IT &&
+          consultant.role !== Role.ADMIN)
+      ) {
         throw new BadRequestException('Selected consultant is not valid');
       }
 
-      const updated = await this.deviceModel.findByIdAndUpdate(deviceId, {
-        status: 'assigned',
-        assignedTo: consultant._id?.toString() || consultantId,
-        assignedAt: new Date(),
-        assignedBy: assignedBy ?? null,
-      }, { returnDocument: 'after' }).exec();
+      const updated = await this.deviceModel
+        .findByIdAndUpdate(
+          deviceId,
+          {
+            status: 'assigned',
+            assignedTo: consultant._id?.toString() || consultantId,
+            assignedAt: new Date(),
+            assignedBy: assignedBy ?? null,
+          },
+          { returnDocument: 'after' },
+        )
+        .exec();
 
       if (!updated) {
         throw new NotFoundException('Device not found');
       }
 
+      // Create notification
+      try {
+        let assignedByName = 'System';
+        if (assignedBy) {
+          const assignedByUser = await this.usersService.findOne(assignedBy);
+          assignedByName = assignedByUser ? `${assignedByUser.nom} ${assignedByUser.prenom}` : 'Unknown';
+        }
+        const consultantName = consultant ? `${consultant.nom} ${consultant.prenom}` : 'Unknown';
+        await this.notificationsService.create({
+          message: `Device "${device.name}" has been allocated to ${consultantName} by ${assignedByName}`,
+          type: NotificationType.DEVICE_ALLOCATED,
+          userEmail: consultant.email,
+          userName: consultantName,
+          recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        });
+      } catch (e) {
+        console.error('Failed to create device allocation notification', e);
+      }
+
       return updated;
     } catch (error) {
-      console.error('ALLOCATE_DEVICE_ERROR', { deviceId, consultantId, assignedBy, error });
+      console.error('ALLOCATE_DEVICE_ERROR', {
+        deviceId,
+        consultantId,
+        assignedBy,
+        error,
+      });
       throw error;
     }
   }
@@ -251,15 +384,34 @@ export class DevicesService {
       throw new BadRequestException('Only assigned devices can be returned');
     }
 
-    const updated = await this.deviceModel.findByIdAndUpdate(deviceId, {
-      status: 'available',
-      assignedTo: null,
-      assignedAt: null,
-      assignedBy: null,
-    }, { returnDocument: 'after' }).exec();
+    const updated = await this.deviceModel
+      .findByIdAndUpdate(
+        deviceId,
+        {
+          status: 'available',
+          assignedTo: null,
+          assignedAt: null,
+          assignedBy: null,
+        },
+        { returnDocument: 'after' },
+      )
+      .exec();
 
     if (!updated) {
       throw new NotFoundException('Device not found');
+    }
+
+    // Create notification
+    try {
+      await this.notificationsService.create({
+        message: `Device "${device.name}" has been returned and is now available`,
+        type: NotificationType.DEVICE_RETURNED,
+        userEmail: device.email || '',
+        userName: device.owner || 'Unknown',
+        recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+      });
+    } catch (e) {
+      console.error('Failed to create device return notification', e);
     }
 
     return updated;
@@ -274,14 +426,22 @@ export class DevicesService {
   }
 
   async addPhoto(deviceId: string, photoUrl: string): Promise<Device> {
-    const updated = await this.deviceModel.findByIdAndUpdate(deviceId, { $push: { photos: photoUrl } }, { returnDocument: 'after' }).exec();
+    const updated = await this.deviceModel
+      .findByIdAndUpdate(
+        deviceId,
+        { $set: { photos: [photoUrl] } },
+        { returnDocument: 'after' },
+      )
+      .exec();
     if (!updated) {
       throw new NotFoundException('Device not found');
     }
     return updated;
   }
 
-  async importDevices(file: any): Promise<{ success: number; failed: number; errors: string[] }> {
+  async importDevices(
+    file: any,
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file.buffer);
     const worksheet = workbook.worksheets[0];
@@ -308,14 +468,16 @@ export class DevicesService {
       const location = row.getCell(7).value?.toString()?.trim() || '';
 
       if (!name || !type || !serialNumber) {
-        errors.push(`Row ${rowNumber}: Missing required fields (name, type, serialNumber)`);
+        errors.push(
+          `Row ${rowNumber}: Missing required fields (name, type, serialNumber)`,
+        );
         failedCount++;
         return;
       }
 
       if (!status) {
         errors.push(
-          `Row ${rowNumber}: Status "${rawStatus || 'empty'}" is not recognized. Valid values: Disponible/Available, Assigné/Assigned, Maintenance, Retiré/Retired`
+          `Row ${rowNumber}: Status "${rawStatus || 'empty'}" is not recognized. Valid values: Disponible/Available, Assigné/Assigned, Maintenance, Retiré/Retired`,
         );
         failedCount++;
         return;
@@ -337,7 +499,9 @@ export class DevicesService {
       try {
         await this.create(device);
       } catch (error: any) {
-        errors.push(`Failed to create device "${device.name}": ${error.message}`);
+        errors.push(
+          `Failed to create device "${device.name}": ${error.message}`,
+        );
         failedCount++;
         successCount--;
       }
@@ -365,7 +529,11 @@ export class DevicesService {
     // Style header row
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F81BD' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4F81BD' },
+    };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Get devices with optional search filter
@@ -393,7 +561,11 @@ export class DevicesService {
 
       // Zebra striping
       if (index % 2 === 0) {
-        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF2F2F2' },
+        };
       }
 
       // Status color coding

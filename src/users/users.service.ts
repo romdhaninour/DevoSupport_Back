@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserDocument, Role, Status } from './user.schema';
@@ -8,22 +13,24 @@ import * as ExcelJS from 'exceljs';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectModel(User.name) private userModel: Model<UserDocument>,
-  ) {}
+  constructor(@InjectModel(User.name) private userModel: Model<UserDocument>) {}
 
   // Create a new user
   async create(createUserDto: CreateUserDto): Promise<User> {
-    const existing = await this.userModel.findOne({ email: createUserDto.email });
+    const existing = await this.userModel.findOne({
+      email: createUserDto.email,
+    });
     if (existing) {
-      throw new ConflictException(`Email ${createUserDto.email} already exists`);
+      throw new ConflictException(
+        `Email ${createUserDto.email} already exists`,
+      );
     }
-    
+
     const user = new this.userModel({
-    ...createUserDto,
-    status: Status.INACTIVE,
-  });   
-   return user.save();
+      ...createUserDto,
+      status: Status.INACTIVE,
+    });
+    return user.save();
   }
 
   // Get all users (excluding archived by default)
@@ -39,20 +46,24 @@ export class UsersService {
 
   // Get users by role
   async findByRole(role: Role): Promise<User[]> {
-    return this.userModel.find({ role, status: { $ne: Status.ARCHIVED } }).exec();
+    return this.userModel
+      .find({ role, status: { $ne: Status.ARCHIVED } })
+      .exec();
   }
 
   // Get all consultants and admins that can be allocated devices
   async findConsultants(): Promise<User[]> {
-    return this.userModel.find({
-      $or: [
-        { role: Role.IT },
-        { role: Role.CONSULTANT },
-        { role: Role.ADMIN },
-        { isConsultant: true },
-      ],
-      status: { $ne: Status.ARCHIVED },
-    }).exec();
+    return this.userModel
+      .find({
+        $or: [
+          { role: Role.IT },
+          { role: Role.CONSULTANT },
+          { role: Role.ADMIN },
+          { isConsultant: true },
+        ],
+        status: { $ne: Status.ARCHIVED },
+      })
+      .exec();
   }
 
   // Get one user by ID
@@ -104,7 +115,9 @@ export class UsersService {
     return { message: `User ${user.email} deleted successfully` };
   }
 
-  async importUsers(file: any): Promise<{ success: number; failed: number; errors: string[] }> {
+  async importUsers(
+    file: any,
+  ): Promise<{ success: number; failed: number; errors: string[] }> {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(file.buffer);
     const worksheet = workbook.worksheets[0];
@@ -121,7 +134,7 @@ export class UsersService {
     // Get header row to map column indices
     const headerRow = worksheet.getRow(1);
     const headerMap: Record<string, number> = {};
-    
+
     headerRow.eachCell((cell, colNumber) => {
       const header = cell.value?.toString()?.trim().toLowerCase();
       if (header) {
@@ -149,7 +162,9 @@ export class UsersService {
       const role = getValue(['role', 'rôle']) || 'CONSULTANT';
 
       if (!nom || !prenom || !email) {
-        errors.push(`Row ${rowNumber}: Missing required fields (nom, prenom, email)`);
+        errors.push(
+          `Row ${rowNumber}: Missing required fields (nom, prenom, email)`,
+        );
         failedCount++;
         return;
       }
@@ -158,7 +173,9 @@ export class UsersService {
       const validRoles = ['ADMIN', 'IT', 'CONSULTANT'];
       const normalizedRole = role.toUpperCase();
       if (!validRoles.includes(normalizedRole)) {
-        errors.push(`Row ${rowNumber}: Invalid role "${role}". Must be one of: ${validRoles.join(', ')}`);
+        errors.push(
+          `Row ${rowNumber}: Invalid role "${role}". Must be one of: ${validRoles.join(', ')}`,
+        );
         failedCount++;
         return;
       }
@@ -201,7 +218,11 @@ export class UsersService {
     // Style header row
     const headerRow = worksheet.getRow(1);
     headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F81BD' } };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF4F81BD' },
+    };
     headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
 
     // Get users with optional search filter
@@ -227,7 +248,11 @@ export class UsersService {
 
       // Zebra striping
       if (index % 2 === 0) {
-        row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF2F2F2' } };
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFF2F2F2' },
+        };
       }
 
       // Status color coding

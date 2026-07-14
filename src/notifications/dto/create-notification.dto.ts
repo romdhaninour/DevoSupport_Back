@@ -1,5 +1,5 @@
-import { IsString, IsEnum, IsOptional, IsEmail } from 'class-validator';
-import { NotificationType } from '../notification.schema';
+import { IsString, IsEnum, IsOptional, IsEmail, IsArray } from 'class-validator';
+import { NotificationType, NotificationRecipientRole } from '../notification.schema';
 
 export class CreateNotificationDto {
   @IsString()
@@ -15,4 +15,9 @@ export class CreateNotificationDto {
   @IsString()
   @IsOptional()
   userName?: string;
+
+  @IsArray()
+  @IsEnum(NotificationRecipientRole, { each: true })
+  @IsOptional()
+  recipientRoles?: NotificationRecipientRole[];
 }

@@ -58,10 +58,21 @@ describe('GoogleStrategy', () => {
   describe('validate', () => {
     it('should validate registered user and return user with token', async () => {
       const mockDone = jest.fn();
-      authService.validateGoogleUser.mockResolvedValue({ status: 'registered', user: mockUser });
-      authService.login.mockResolvedValue({ access_token: 'jwt-token', user: mockUser });
+      authService.validateGoogleUser.mockResolvedValue({
+        status: 'registered',
+        user: mockUser,
+      });
+      authService.login.mockResolvedValue({
+        access_token: 'jwt-token',
+        user: mockUser,
+      });
 
-      await strategy.validate('access-token', 'refresh-token', mockProfile, mockDone as any);
+      await strategy.validate(
+        'access-token',
+        'refresh-token',
+        mockProfile,
+        mockDone as any,
+      );
 
       expect(authService.validateGoogleUser).toHaveBeenCalledWith({
         email: 'john.doe@example.com',
@@ -70,36 +81,58 @@ describe('GoogleStrategy', () => {
         profilePicture: 'https://example.com/pic.jpg',
       });
       expect(authService.login).toHaveBeenCalledWith(mockUser);
-      expect(mockDone).toHaveBeenCalledWith(null, expect.objectContaining({
-        _id: mockUser._id,
-        nom: mockUser.nom,
-        prenom: mockUser.prenom,
-        email: mockUser.email,
-        role: mockUser.role,
-        status: mockUser.status,
-        isConsultant: mockUser.isConsultant,
-        profilePicture: mockUser.profilePicture,
-        token: 'jwt-token',
-      }));
+      expect(mockDone).toHaveBeenCalledWith(
+        null,
+        expect.objectContaining({
+          _id: mockUser._id,
+          nom: mockUser.nom,
+          prenom: mockUser.prenom,
+          email: mockUser.email,
+          role: mockUser.role,
+          status: mockUser.status,
+          isConsultant: mockUser.isConsultant,
+          profilePicture: mockUser.profilePicture,
+          token: 'jwt-token',
+        }),
+      );
     });
 
     it('should handle not registered user', async () => {
       const mockDone = jest.fn();
-      authService.validateGoogleUser.mockResolvedValue({ status: 'not_registered' });
+      authService.validateGoogleUser.mockResolvedValue({
+        status: 'not_registered',
+      });
 
-      await strategy.validate('access-token', 'refresh-token', mockProfile, mockDone as any);
+      await strategy.validate(
+        'access-token',
+        'refresh-token',
+        mockProfile,
+        mockDone as any,
+      );
 
-      expect(mockDone).toHaveBeenCalledWith(null, false, { message: 'account_not_registered' });
+      expect(mockDone).toHaveBeenCalledWith(null, false, {
+        message: 'account_not_registered',
+      });
       expect(authService.login).not.toHaveBeenCalled();
     });
 
     it('should handle inactive user', async () => {
       const mockDone = jest.fn();
-      authService.validateGoogleUser.mockResolvedValue({ status: 'inactive', user: mockUser });
+      authService.validateGoogleUser.mockResolvedValue({
+        status: 'inactive',
+        user: mockUser,
+      });
 
-      await strategy.validate('access-token', 'refresh-token', mockProfile, mockDone as any);
+      await strategy.validate(
+        'access-token',
+        'refresh-token',
+        mockProfile,
+        mockDone as any,
+      );
 
-      expect(mockDone).toHaveBeenCalledWith(null, false, { message: 'account_inactive' });
+      expect(mockDone).toHaveBeenCalledWith(null, false, {
+        message: 'account_inactive',
+      });
       expect(authService.login).not.toHaveBeenCalled();
     });
 
@@ -110,10 +143,21 @@ describe('GoogleStrategy', () => {
         emails: mockProfile.emails,
         photos: [],
       };
-      authService.validateGoogleUser.mockResolvedValue({ status: 'registered', user: mockUser });
-      authService.login.mockResolvedValue({ access_token: 'jwt-token', user: mockUser });
+      authService.validateGoogleUser.mockResolvedValue({
+        status: 'registered',
+        user: mockUser,
+      });
+      authService.login.mockResolvedValue({
+        access_token: 'jwt-token',
+        user: mockUser,
+      });
 
-      await strategy.validate('access-token', 'refresh-token', profileWithoutPhoto, mockDone as any);
+      await strategy.validate(
+        'access-token',
+        'refresh-token',
+        profileWithoutPhoto,
+        mockDone as any,
+      );
 
       expect(authService.validateGoogleUser).toHaveBeenCalledWith({
         email: 'john.doe@example.com',

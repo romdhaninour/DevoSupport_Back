@@ -73,9 +73,9 @@ describe('UsersController', () => {
         role: Role.ADMIN,
       };
 
-      service.create.mockResolvedValue(mockUser as any);
+      service.create.mockResolvedValue(mockUser);
 
-      const result = await controller.create(mockReq as any, createUserDto as any);
+      const result = await controller.create(mockReq as any, createUserDto);
 
       expect(result).toEqual(mockUser);
       expect(service.create).toHaveBeenCalledWith(createUserDto);
@@ -99,11 +99,11 @@ describe('UsersController', () => {
       };
 
       try {
-        await controller.create(nonAdminReq as any, createUserDto as any);
+        await controller.create(nonAdminReq as any, createUserDto);
         fail('Should have thrown ForbiddenException');
       } catch (error) {
         expect(error).toBeInstanceOf(ForbiddenException);
-        expect((error as any).message).toBe('Only admins can create users');
+        expect(error.message).toBe('Only admins can create users');
       }
       expect(service.create).not.toHaveBeenCalled();
     });
@@ -125,7 +125,7 @@ describe('UsersController', () => {
       };
 
       try {
-        await controller.create(reqWithoutRole as any, createUserDto as any);
+        await controller.create(reqWithoutRole as any, createUserDto);
         fail('Should have thrown ForbiddenException');
       } catch (error) {
         expect(error).toBeInstanceOf(ForbiddenException);
@@ -137,9 +137,9 @@ describe('UsersController', () => {
   describe('findAll', () => {
     it('should return all users excluding archived by default', async () => {
       const users = [mockUser, { ...mockUser, email: 'jane@example.com' }];
-      service.findAll.mockResolvedValue(users as any);
+      service.findAll.mockResolvedValue(users);
 
-      const result = await controller.findAll();
+      const result = await controller.findAll(mockReq as any);
 
       expect(result).toEqual(users);
       expect(service.findAll).toHaveBeenCalledWith(false);
@@ -147,9 +147,9 @@ describe('UsersController', () => {
 
     it('should return all users including archived when query param is true', async () => {
       const users = [mockUser, { ...mockUser, status: Status.ARCHIVED }];
-      service.findAll.mockResolvedValue(users as any);
+      service.findAll.mockResolvedValue(users);
 
-      const result = await controller.findAll('true');
+      const result = await controller.findAll(mockReq as any, 'true');
 
       expect(result).toEqual(users);
       expect(service.findAll).toHaveBeenCalledWith(true);
@@ -157,9 +157,9 @@ describe('UsersController', () => {
 
     it('should exclude archived when query param is not true', async () => {
       const users = [mockUser];
-      service.findAll.mockResolvedValue(users as any);
+      service.findAll.mockResolvedValue(users);
 
-      const result = await controller.findAll('false');
+      const result = await controller.findAll(mockReq as any, 'false');
 
       expect(result).toEqual(users);
       expect(service.findAll).toHaveBeenCalledWith(false);
@@ -169,7 +169,7 @@ describe('UsersController', () => {
   describe('findArchived', () => {
     it('should return archived users', async () => {
       const archivedUsers = [{ ...mockUser, status: Status.ARCHIVED }];
-      service.findArchived.mockResolvedValue(archivedUsers as any);
+      service.findArchived.mockResolvedValue(archivedUsers);
 
       const result = await controller.findArchived();
 
@@ -182,9 +182,14 @@ describe('UsersController', () => {
     it('should return consultant users', async () => {
       const consultants = [
         { ...mockUser, isConsultant: true, role: Role.IT },
-        { ...mockUser, isConsultant: true, role: Role.CONSULTANT, email: 'consultant@example.com' },
+        {
+          ...mockUser,
+          isConsultant: true,
+          role: Role.CONSULTANT,
+          email: 'consultant@example.com',
+        },
       ];
-      service.findConsultants.mockResolvedValue(consultants as any);
+      service.findConsultants.mockResolvedValue(consultants);
 
       const result = await controller.findConsultants();
 
@@ -195,8 +200,11 @@ describe('UsersController', () => {
 
   describe('findByRole', () => {
     it('should return users by role', async () => {
-      const adminUsers = [mockUser, { ...mockUser, email: 'admin2@example.com' }];
-      service.findByRole.mockResolvedValue(adminUsers as any);
+      const adminUsers = [
+        mockUser,
+        { ...mockUser, email: 'admin2@example.com' },
+      ];
+      service.findByRole.mockResolvedValue(adminUsers);
 
       const result = await controller.findByRole(Role.ADMIN);
 
@@ -207,7 +215,7 @@ describe('UsersController', () => {
 
   describe('findOne', () => {
     it('should return a single user by ID', async () => {
-      service.findOne.mockResolvedValue(mockUser as any);
+      service.findOne.mockResolvedValue(mockUser);
 
       const result = await controller.findOne('507f1f77bcf86cd799439011');
 
@@ -220,19 +228,33 @@ describe('UsersController', () => {
     it('should update a user', async () => {
       const updateUserDto = { nom: 'Smith' };
       const updatedUser = { ...mockUser, nom: 'Smith' };
-      service.update.mockResolvedValue(updatedUser as any);
+      service.update.mockResolvedValue(updatedUser);
 
-      const result = await controller.update('507f1f77bcf86cd799439011', updateUserDto as any);
+      const mockReq = {
+        user: {
+          userId: '507f1f77bcf86cd799439011',
+          role: Role.ADMIN,
+        },
+      };
+
+      const result = await controller.update(
+        mockReq as any,
+        '507f1f77bcf86cd799439011',
+        updateUserDto,
+      );
 
       expect(result).toEqual(updatedUser);
-      expect(service.update).toHaveBeenCalledWith('507f1f77bcf86cd799439011', updateUserDto);
+      expect(service.update).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+        updateUserDto,
+      );
     });
   });
 
   describe('activate', () => {
     it('should activate a user', async () => {
       const activatedUser = { ...mockUser, status: Status.ACTIVE };
-      service.activate.mockResolvedValue(activatedUser as any);
+      service.activate.mockResolvedValue(activatedUser);
 
       const result = await controller.activate('507f1f77bcf86cd799439011');
 
@@ -244,19 +266,21 @@ describe('UsersController', () => {
   describe('deactivate', () => {
     it('should deactivate a user', async () => {
       const deactivatedUser = { ...mockUser, status: Status.INACTIVE };
-      service.deactivate.mockResolvedValue(deactivatedUser as any);
+      service.deactivate.mockResolvedValue(deactivatedUser);
 
       const result = await controller.deactivate('507f1f77bcf86cd799439011');
 
       expect(result).toEqual(deactivatedUser);
-      expect(service.deactivate).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(service.deactivate).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+      );
     });
   });
 
   describe('archive', () => {
     it('should archive a user', async () => {
       const archivedUser = { ...mockUser, status: Status.ARCHIVED };
-      service.archive.mockResolvedValue(archivedUser as any);
+      service.archive.mockResolvedValue(archivedUser);
 
       const result = await controller.archive('507f1f77bcf86cd799439011');
 
@@ -268,7 +292,7 @@ describe('UsersController', () => {
   describe('restore', () => {
     it('should restore an archived user', async () => {
       const restoredUser = { ...mockUser, status: Status.INACTIVE };
-      service.restore.mockResolvedValue(restoredUser as any);
+      service.restore.mockResolvedValue(restoredUser);
 
       const result = await controller.restore('507f1f77bcf86cd799439011');
 
@@ -279,8 +303,10 @@ describe('UsersController', () => {
 
   describe('remove', () => {
     it('should delete a user', async () => {
-      const deleteResult = { message: `User ${mockUser.email} deleted successfully` };
-      service.remove.mockResolvedValue(deleteResult as any);
+      const deleteResult = {
+        message: `User ${mockUser.email} deleted successfully`,
+      };
+      service.remove.mockResolvedValue(deleteResult);
 
       const result = await controller.remove('507f1f77bcf86cd799439011');
 

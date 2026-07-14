@@ -5,6 +5,9 @@ import { AppController } from './app.controller';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { DevicesModule } from './devices/devices.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { ChatsModule } from './chats/chats.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -14,10 +17,13 @@ import { DevicesModule } from './devices/devices.module';
         uri: process.env.MONGODB_URI,
       }),
     }),
-      UsersModule,
-      AuthModule,
-      DevicesModule,
+    UsersModule,
+    AuthModule,
+    DevicesModule,
+    TicketsModule,
+    ChatsModule,
+    NotificationsModule,
   ],
-  controllers: [AppController], // ← must be here
+  controllers: [AppController],
 })
 export class AppModule {}
