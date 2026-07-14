@@ -4,7 +4,19 @@ import { Document } from 'mongoose';
 export type DeviceDocument = Device & Document;
 
 export type DeviceStatus = 'available' | 'assigned' | 'maintenance' | 'retired';
-export type DeviceType = 'Laptop' | 'Desktop' | 'Mobile' | 'Tablet' | 'Printer' | 'Scanner' | 'Monitor' | 'Router' | 'Switch' | 'Access Point' | 'Camera' | 'Projecteur';
+export type DeviceType =
+  | 'Laptop'
+  | 'Desktop'
+  | 'Mobile'
+  | 'Tablet'
+  | 'Printer'
+  | 'Scanner'
+  | 'Monitor'
+  | 'Router'
+  | 'Switch'
+  | 'Access Point'
+  | 'Camera'
+  | 'Projecteur';
 
 @Schema({ timestamps: true })
 export class Device {
@@ -23,7 +35,11 @@ export class Device {
   @Prop({ trim: true })
   email!: string;
 
-  @Prop({ required: true, enum: ['available', 'assigned', 'maintenance', 'retired'], default: 'available' })
+  @Prop({
+    required: true,
+    enum: ['available', 'assigned', 'maintenance', 'retired'],
+    default: 'available',
+  })
   status!: DeviceStatus;
 
   @Prop({ trim: true })

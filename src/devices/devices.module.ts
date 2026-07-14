@@ -5,12 +5,14 @@ import { DevicesController } from './devices.controller';
 import { DevicesService } from './devices.service';
 import { Device, DeviceSchema } from './device.schema';
 import { UsersModule } from '../users/users.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Device.name, schema: DeviceSchema }]),
     MulterModule.register(),
     UsersModule,
+    NotificationsModule,
   ],
   controllers: [DevicesController],
   providers: [DevicesService],

@@ -21,6 +21,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done: VerifyCallback,
   ): Promise<any> {
     const { name, emails, photos } = profile;
+
     const userProfile = {
       email: emails[0].value,
       firstName: name.givenName,
@@ -39,7 +40,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     }
 
     const validatedUser = validation.user;
-    const { access_token, userId } = await this.authService.login(validatedUser);
+    const { access_token, userId } =
+      await this.authService.login(validatedUser);
 
     const plainUser = {
       _id: (validatedUser as any)._id,

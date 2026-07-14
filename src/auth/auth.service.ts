@@ -17,7 +17,9 @@ export class AuthService {
 
   async validateGoogleUser(profile: any): Promise<GoogleValidateResult> {
     const { email, firstName, lastName, profilePicture } = profile;
-    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+
+    const normalizedEmail =
+      typeof email === 'string' ? email.trim().toLowerCase() : '';
 
     if (!normalizedEmail) {
       return { status: 'not_registered' };

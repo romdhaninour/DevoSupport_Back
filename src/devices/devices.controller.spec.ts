@@ -30,7 +30,9 @@ describe('DevicesController', () => {
     const createdDevice = { ...dto, id: 'device-1' };
     (service.create as jest.Mock).mockResolvedValue(createdDevice);
 
-    await expect(controller.create({ user: { role: Role.ADMIN } }, dto as any, null)).resolves.toEqual(createdDevice);
+    await expect(
+      controller.create({ user: { role: Role.ADMIN } }, dto as any, null),
+    ).resolves.toEqual(createdDevice);
   });
 
   it('allows IT staff to create a device', async () => {
@@ -48,6 +50,8 @@ describe('DevicesController', () => {
     const createdDevice = { ...dto, id: 'device-1' };
     (service.create as jest.Mock).mockResolvedValue(createdDevice);
 
-    await expect(controller.create({ user: { role: Role.IT } }, dto as any, null)).resolves.toEqual(createdDevice);
+    await expect(
+      controller.create({ user: { role: Role.IT } }, dto as any, null),
+    ).resolves.toEqual(createdDevice);
   });
 });

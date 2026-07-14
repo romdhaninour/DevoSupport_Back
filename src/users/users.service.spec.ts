@@ -51,7 +51,9 @@ describe('UsersService', () => {
     static findByIdAndDelete = jest.fn();
     static findOne = jest.fn();
     static create = jest.fn().mockImplementation((data: any) => {
-      return Promise.resolve(new MockUserModel({ ...data, _id: '507f1f77bcf86cd799439011' }));
+      return Promise.resolve(
+        new MockUserModel({ ...data, _id: '507f1f77bcf86cd799439011' }),
+      );
     });
   }
 
@@ -86,16 +88,24 @@ describe('UsersService', () => {
       };
 
       mockUserModel.findOne.mockResolvedValue(null);
-      const createdUser = { ...mockUser, ...createUserDto, status: Status.INACTIVE };
+      const createdUser = {
+        ...mockUser,
+        ...createUserDto,
+        status: Status.INACTIVE,
+      };
       mockUserModel.create.mockResolvedValue(createdUser);
 
       const result = await service.create(createUserDto);
 
-      expect(result).toEqual(expect.objectContaining({
-        ...createUserDto,
-        status: Status.INACTIVE,
-      }));
-      expect(mockUserModel.findOne).toHaveBeenCalledWith({ email: createUserDto.email });
+      expect(result).toEqual(
+        expect.objectContaining({
+          ...createUserDto,
+          status: Status.INACTIVE,
+        }),
+      );
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        email: createUserDto.email,
+      });
     });
 
     it('should throw ConflictException if email already exists', async () => {
@@ -108,9 +118,11 @@ describe('UsersService', () => {
 
       mockUserModel.findOne.mockResolvedValue(mockUser);
 
-      await expect(service.create(createUserDto)).rejects.toThrow(ConflictException);
       await expect(service.create(createUserDto)).rejects.toThrow(
-        `Email ${createUserDto.email} already exists`
+        ConflictException,
+      );
+      await expect(service.create(createUserDto)).rejects.toThrow(
+        `Email ${createUserDto.email} already exists`,
       );
     });
 
@@ -123,7 +135,11 @@ describe('UsersService', () => {
       };
 
       mockUserModel.findOne.mockResolvedValue(null);
-      const createdUser = { ...mockUser, ...createUserDto, status: Status.INACTIVE };
+      const createdUser = {
+        ...mockUser,
+        ...createUserDto,
+        status: Status.INACTIVE,
+      };
       mockUserModel.create.mockResolvedValue(createdUser);
 
       const result = await service.create(createUserDto);
@@ -142,7 +158,9 @@ describe('UsersService', () => {
       const result = await service.findAll();
 
       expect(result).toEqual(users);
-      expect(mockUserModel.find).toHaveBeenCalledWith({ status: { $ne: Status.ARCHIVED } });
+      expect(mockUserModel.find).toHaveBeenCalledWith({
+        status: { $ne: Status.ARCHIVED },
+      });
     });
 
     it('should return all users including archived when flag is true', async () => {
@@ -168,13 +186,18 @@ describe('UsersService', () => {
       const result = await service.findArchived();
 
       expect(result).toEqual(archivedUsers);
-      expect(mockUserModel.find).toHaveBeenCalledWith({ status: Status.ARCHIVED });
+      expect(mockUserModel.find).toHaveBeenCalledWith({
+        status: Status.ARCHIVED,
+      });
     });
   });
 
   describe('findByRole', () => {
     it('should return users by role excluding archived', async () => {
-      const adminUsers = [mockUser, { ...mockUser, email: 'admin2@example.com' }];
+      const adminUsers = [
+        mockUser,
+        { ...mockUser, email: 'admin2@example.com' },
+      ];
       mockUserModel.find.mockReturnValue({
         exec: jest.fn().mockResolvedValue(adminUsers),
       } as any);
@@ -193,7 +216,12 @@ describe('UsersService', () => {
     it('should return consultant and admin users excluding archived', async () => {
       const consultants = [
         { ...mockUser, isConsultant: true, role: Role.IT },
-        { ...mockUser, isConsultant: true, role: Role.CONSULTANT, email: 'consultant@example.com' },
+        {
+          ...mockUser,
+          isConsultant: true,
+          role: Role.CONSULTANT,
+          email: 'consultant@example.com',
+        },
         { ...mockUser, role: Role.ADMIN, email: 'admin@example.com' },
       ];
       mockUserModel.find.mockReturnValue({
@@ -224,7 +252,9 @@ describe('UsersService', () => {
       const result = await service.findOne('507f1f77bcf86cd799439011');
 
       expect(result).toEqual(mockUser);
-      expect(mockUserModel.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(mockUserModel.findById).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+      );
     });
 
     it('should throw NotFoundException if user not found', async () => {
@@ -232,9 +262,11 @@ describe('UsersService', () => {
         exec: jest.fn().mockResolvedValue(null),
       } as any);
 
-      await expect(service.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
       await expect(service.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(
-        'User #507f1f77bcf86cd799439011 not found'
+        NotFoundException,
+      );
+      await expect(service.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(
+        'User #507f1f77bcf86cd799439011 not found',
       );
     });
   });
@@ -248,7 +280,9 @@ describe('UsersService', () => {
       const result = await service.findByEmail('john.doe@example.com');
 
       expect(result).toEqual(mockUser);
-      expect(mockUserModel.findOne).toHaveBeenCalledWith({ email: 'john.doe@example.com' });
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        email: 'john.doe@example.com',
+      });
     });
 
     it('should normalize email to lowercase', async () => {
@@ -258,7 +292,9 @@ describe('UsersService', () => {
 
       await service.findByEmail('John.Doe@Example.COM');
 
-      expect(mockUserModel.findOne).toHaveBeenCalledWith({ email: 'john.doe@example.com' });
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        email: 'john.doe@example.com',
+      });
     });
 
     it('should trim whitespace from email', async () => {
@@ -268,7 +304,9 @@ describe('UsersService', () => {
 
       await service.findByEmail('  john.doe@example.com  ');
 
-      expect(mockUserModel.findOne).toHaveBeenCalledWith({ email: 'john.doe@example.com' });
+      expect(mockUserModel.findOne).toHaveBeenCalledWith({
+        email: 'john.doe@example.com',
+      });
     });
 
     it('should return null if user not found', async () => {
@@ -291,13 +329,16 @@ describe('UsersService', () => {
         exec: jest.fn().mockResolvedValue(updatedUser),
       } as any);
 
-      const result = await service.update('507f1f77bcf86cd799439011', updateUserDto);
+      const result = await service.update(
+        '507f1f77bcf86cd799439011',
+        updateUserDto,
+      );
 
       expect(result).toEqual(updatedUser);
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         updateUserDto,
-        { new: true }
+        { new: true },
       );
     });
 
@@ -306,9 +347,9 @@ describe('UsersService', () => {
         exec: jest.fn().mockResolvedValue(null),
       } as any);
 
-      await expect(service.update('507f1f77bcf86cd799439011', { nom: 'Smith' })).rejects.toThrow(
-        NotFoundException
-      );
+      await expect(
+        service.update('507f1f77bcf86cd799439011', { nom: 'Smith' }),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -325,7 +366,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.ACTIVE },
-        { new: true }
+        { new: true },
       );
     });
   });
@@ -343,7 +384,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.INACTIVE },
-        { new: true }
+        { new: true },
       );
     });
   });
@@ -361,7 +402,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.ARCHIVED },
-        { new: true }
+        { new: true },
       );
     });
   });
@@ -379,7 +420,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.INACTIVE },
-        { new: true }
+        { new: true },
       );
     });
   });
@@ -392,8 +433,12 @@ describe('UsersService', () => {
 
       const result = await service.remove('507f1f77bcf86cd799439011');
 
-      expect(result).toEqual({ message: `User ${mockUser.email} deleted successfully` });
-      expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(result).toEqual({
+        message: `User ${mockUser.email} deleted successfully`,
+      });
+      expect(mockUserModel.findByIdAndDelete).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+      );
     });
 
     it('should throw NotFoundException if user not found', async () => {
@@ -401,7 +446,9 @@ describe('UsersService', () => {
         exec: jest.fn().mockResolvedValue(null),
       } as any);
 
-      await expect(service.remove('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('507f1f77bcf86cd799439011')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

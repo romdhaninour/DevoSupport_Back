@@ -1,4 +1,12 @@
-import { Controller, ExecutionContext, Get, Redirect, Req, UseGuards, Injectable } from '@nestjs/common';
+import {
+  Controller,
+  ExecutionContext,
+  Get,
+  Redirect,
+  Req,
+  UseGuards,
+  Injectable,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
@@ -40,10 +48,13 @@ export class AuthController {
   googleLoginCallback(@Req() req: AuthRequest) {
     console.log('Google callback req.user:', req.user);
     if (!req.user || !req.user.token) {
-      return { url: 'http://localhost:4200/signin?message=account_not_registered' };
+      return {
+        url: 'http://localhost:4200/signin?message=account_not_registered',
+      };
     }
 
-    const { token, status, role, profilePicture, nom, prenom, email, userId } = req.user;
+    const { token, status, role, profilePicture, nom, prenom, email, userId } =
+      req.user;
     console.log('Extracted values:', { token, status, role, profilePicture });
 
     return {

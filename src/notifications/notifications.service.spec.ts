@@ -18,7 +18,7 @@ describe('NotificationsService', () => {
   };
 
   // Create a proper mock that can be used as a constructor
-  const MockNotificationModel: any = function(this: any, data: any) {
+  const MockNotificationModel: any = function (this: any, data: any) {
     this._id = data._id || '507f1f77bcf86cd799439011';
     this.message = data.message;
     this.type = data.type;
@@ -64,7 +64,9 @@ describe('NotificationsService', () => {
       };
 
       const createdNotification = { ...mockNotification, ...createDto };
-      MockNotificationModel.create.mockResolvedValue(createdNotification as any);
+      MockNotificationModel.create.mockResolvedValue(
+        createdNotification as any,
+      );
 
       const result = await service.create(createDto as any);
 
@@ -79,7 +81,10 @@ describe('NotificationsService', () => {
 
   describe('findAll', () => {
     it('should return all notifications sorted by createdAt desc', async () => {
-      const notifications = [mockNotification, { ...mockNotification, _id: '2' }];
+      const notifications = [
+        mockNotification,
+        { ...mockNotification, _id: '2' },
+      ];
       mockNotificationModel.find.mockReturnValue({
         sort: jest.fn().mockReturnValue({
           exec: jest.fn().mockResolvedValue(notifications),
@@ -118,7 +123,9 @@ describe('NotificationsService', () => {
       const result = await service.findOne('507f1f77bcf86cd799439011');
 
       expect(result).toEqual(mockNotification);
-      expect(mockNotificationModel.findById).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(mockNotificationModel.findById).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+      );
     });
 
     it('should throw NotFoundException if notification not found', async () => {
@@ -126,9 +133,11 @@ describe('NotificationsService', () => {
         exec: jest.fn().mockResolvedValue(null),
       } as any);
 
-      await expect(service.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
       await expect(service.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(
-        'Notification #507f1f77bcf86cd799439011 not found'
+        NotFoundException,
+      );
+      await expect(service.findOne('507f1f77bcf86cd799439011')).rejects.toThrow(
+        'Notification #507f1f77bcf86cd799439011 not found',
       );
     });
   });
@@ -146,7 +155,7 @@ describe('NotificationsService', () => {
       expect(mockNotificationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { read: true },
-        { new: true }
+        { new: true },
       );
     });
 
@@ -155,7 +164,9 @@ describe('NotificationsService', () => {
         exec: jest.fn().mockResolvedValue(null),
       } as any);
 
-      await expect(service.markAsRead('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
+      await expect(
+        service.markAsRead('507f1f77bcf86cd799439011'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -169,7 +180,10 @@ describe('NotificationsService', () => {
       const result = await service.markAllAsRead();
 
       expect(result).toEqual(updateResult);
-      expect(mockNotificationModel.updateMany).toHaveBeenCalledWith({ read: false }, { read: true });
+      expect(mockNotificationModel.updateMany).toHaveBeenCalledWith(
+        { read: false },
+        { read: true },
+      );
     });
   });
 
@@ -182,7 +196,9 @@ describe('NotificationsService', () => {
       const result = await service.remove('507f1f77bcf86cd799439011');
 
       expect(result).toEqual(mockNotification);
-      expect(mockNotificationModel.findByIdAndDelete).toHaveBeenCalledWith('507f1f77bcf86cd799439011');
+      expect(mockNotificationModel.findByIdAndDelete).toHaveBeenCalledWith(
+        '507f1f77bcf86cd799439011',
+      );
     });
 
     it('should throw NotFoundException if notification not found when deleting', async () => {
@@ -190,7 +206,9 @@ describe('NotificationsService', () => {
         exec: jest.fn().mockResolvedValue(null),
       } as any);
 
-      await expect(service.remove('507f1f77bcf86cd799439011')).rejects.toThrow(NotFoundException);
+      await expect(service.remove('507f1f77bcf86cd799439011')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 
