@@ -316,7 +316,7 @@ export class DevicesService implements OnApplicationBootstrap {
       }
     }
 
-    const deviceObj = device.toObject();
+    const deviceObj = (device as DeviceDocument).toObject();
 
     if (deviceObj.assignedTo) {
       try {
