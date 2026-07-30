@@ -18,6 +18,23 @@ export type DeviceType =
   | 'Camera'
   | 'Projecteur';
 
+export type MaintenanceFrequency =
+  | '1month'
+  | '3months'
+  | '6months'
+  | '9months'
+  | '1year';
+
+export const MaintenanceFrequencyLabels: Record<MaintenanceFrequency, string> = {
+  '1month': '1 mois',
+  '3months': '3 mois',
+  '6months': '6 mois',
+  '9months': '9 mois',
+  '1year': '1 an',
+};
+
+
+
 @Schema({ timestamps: true })
 export class Device {
   @Prop({ required: true, trim: true })
@@ -62,6 +79,30 @@ export class Device {
 
   @Prop({ type: [String], default: [] })
   photos!: string[];
+
+  // Maintenance fields
+  @Prop({ type: Boolean, default: false })
+  maintenanceEnabled!: boolean;
+
+  @Prop({ type: String, default: null })
+  maintenanceDescription!: string | null;
+
+  @Prop({ type: Date, default: null })
+  maintenanceStartDate!: Date | null;
+
+  @Prop({ type: Date, default: null })
+  maintenanceEndDate!: Date | null;
+
+  @Prop({ type: String, enum: ['1month', '3months', '6months', '9months', '1year'], default: null })
+  maintenanceFrequency!: MaintenanceFrequency | null;
+
+  @Prop({ type: Date, default: null })
+  lastMaintenanceDate!: Date | null;
+
+  @Prop({ type: Date, default: null })
+  nextMaintenanceDate!: Date | null;
 }
 
 export const DeviceSchema = SchemaFactory.createForClass(Device);
+
+DeviceSchema.index({ maintenanceEnabled: 1, nextMaintenanceDate: 1 });

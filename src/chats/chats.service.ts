@@ -10,7 +10,12 @@ export class ChatsService {
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
   ) {}
 
-  async createMessage(senderId: string, receiverId: string, message: string, senderRole: Role, receiverRole: Role): Promise<Chat> {
+  async createMessage(senderId: string, receiverId: string, message: string, senderRole: Role, receiverRole: Role, imageUrl?: string): Promise<Chat> {
+    // Validation: either message or imageUrl must be present
+    if (!message && !imageUrl) {
+      throw new Error('Either message or imageUrl is required');
+    }
+
     // Validate conversation is allowed based on roles
     if (!this.isConversationAllowed(senderRole, receiverRole)) {
       throw new ForbiddenException('Conversation not allowed between these roles');
@@ -19,10 +24,17 @@ export class ChatsService {
     const chat = new this.chatModel({
       sender: senderId,
       receiver: receiverId,
-      message,
+      message: message || '',
+      imageUrl,
       read: false,
     });
-    return chat.save();
+    const saved = await chat.save();
+    const populated = await this.chatModel
+      .findById(saved._id)
+      .populate('sender', 'nom prenom email profilePicture role')
+      .populate('receiver', 'nom prenom email profilePicture role')
+      .exec();
+    return populated!;
   }
 
   async getConversation(userId1: string, userId2: string, limit: number = 50): Promise<Chat[]> {
@@ -35,6 +47,7 @@ export class ChatsService {
       })
       .populate('sender', 'nom prenom email profilePicture')
       .populate('receiver', 'nom prenom email profilePicture')
+      .populate('reactions.userId', 'nom prenom')
       .sort({ createdAt: -1 })
       .limit(limit)
       .exec();
@@ -132,6 +145,35 @@ export class ChatsService {
     return Array.from(conversationMap.values()).sort(
       (a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime()
     );
+  }
+
+  async getMessageById(messageId: string): Promise<Chat | null> {
+    return this.chatModel
+      .findById(messageId)
+      .populate('sender', 'nom prenom email profilePicture role')
+      .populate('receiver', 'nom prenom email profilePicture role')
+      .populate('reactions.userId', 'nom prenom')
+      .exec();
+  }
+
+  async addReaction(messageId: string, userId: string, emoji: string): Promise<Chat> {
+    const message = await this.chatModel.findById(messageId);
+    if (!message) throw new NotFoundException('Message not found');
+    
+    // Check if user already reacted with same emoji - toggle off
+    const existing = message.reactions.findIndex(
+      r => r.userId.toString() === userId && r.emoji === emoji
+    );
+    
+    if (existing >= 0) {
+      message.reactions.splice(existing, 1);
+    } else {
+      // Remove any existing reaction from this user first (one reaction per user per message)
+      message.reactions = message.reactions.filter(r => r.userId.toString() !== userId);
+      message.reactions.push({ emoji, userId: userId as any });
+    }
+    
+    return message.save();
   }
 
   private isConversationAllowed(userRole: Role, partnerRole: string): boolean {

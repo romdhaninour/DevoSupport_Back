@@ -3,10 +3,12 @@ import { ChatsController } from './chats.controller';
 import { ChatsService } from './chats.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Chat, ChatDocument } from './chat.schema';
+import { UsersService } from '../users/users.service';
 
 describe('ChatsController', () => {
   let controller: ChatsController;
   let service: ChatsService;
+  let usersService: { findOne: jest.Mock };
 
   const mockChat = {
     _id: '507f1f77bcf86cd799439011',
@@ -53,6 +55,12 @@ describe('ChatsController', () => {
           provide: ChatsService,
           useValue: mockChatsService,
         },
+        {
+          provide: UsersService,
+          useValue: {
+            findOne: jest.fn(),
+          },
+        },
       ],
     })
       .overrideGuard(JwtAuthGuard)
@@ -61,6 +69,7 @@ describe('ChatsController', () => {
 
     controller = module.get<ChatsController>(ChatsController);
     service = module.get<ChatsService>(ChatsService);
+    usersService = module.get(UsersService) as any;
   });
 
   afterEach(() => {
@@ -74,6 +83,9 @@ describe('ChatsController', () => {
   describe('sendMessage', () => {
     it('should send a message', async () => {
       mockChatsService.createMessage.mockResolvedValue(mockChat);
+      usersService.findOne
+        .mockResolvedValueOnce({ role: 'ADMIN' })
+        .mockResolvedValueOnce({ role: 'CONSULTANT' });
       
       const result = await controller.sendMessage(mockReq, {
         receiverId: '507f1f77bcf86cd799439013',
@@ -83,7 +95,10 @@ describe('ChatsController', () => {
       expect(service.createMessage).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439012',
         '507f1f77bcf86cd799439013',
-        'Hello'
+        'Hello',
+        'ADMIN',
+        'CONSULTANT',
+        undefined,
       );
       expect(result).toEqual(mockChat);
     });
@@ -96,6 +111,9 @@ describe('ChatsController', () => {
         },
       };
       mockChatsService.createMessage.mockResolvedValue(mockChat);
+      usersService.findOne
+        .mockResolvedValueOnce({ role: 'ADMIN' })
+        .mockResolvedValueOnce({ role: 'CONSULTANT' });
       
       await controller.sendMessage(reqWithoutUserId, {
         receiverId: '507f1f77bcf86cd799439013',
@@ -105,7 +123,10 @@ describe('ChatsController', () => {
       expect(service.createMessage).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439012',
         '507f1f77bcf86cd799439013',
-        'Hello'
+        'Hello',
+        'ADMIN',
+        'CONSULTANT',
+        undefined,
       );
     });
   });

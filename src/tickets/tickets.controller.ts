@@ -39,10 +39,23 @@ export class TicketsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('mine') mine?: boolean,
+    @Query('sortOrder') sortOrder?: string,
   ) {
     const userId = req.user?.userId || req.user?.sub;
     const role = req.user?.role;
-    return this.ticketsService.findAll(userId, role, status, priority, issueType, startDate, endDate, mine);
+    return this.ticketsService.findAll(userId, role, status, priority, issueType, startDate, endDate, mine, sortOrder);
+  }
+
+  @Get('user/:userId')
+  async findByUser(
+    @Param('userId') userId: string,
+    @Req() req: any,
+  ) {
+    const role = req.user?.role;
+    if (role !== Role.IT && role !== Role.ADMIN) {
+      throw new ForbiddenException('Only IT staff can view tickets by user');
+    }
+    return this.ticketsService.findByUserId(userId);
   }
 
   @Get(':id')

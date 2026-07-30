@@ -2,8 +2,26 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { getModelToken } from '@nestjs/mongoose';
 import { User, Role, Status } from './user.schema';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException, BadRequestException } from '@nestjs/common';
 import { Model } from 'mongoose';
+
+const mockWorkbook = {
+  xlsx: {
+    load: jest.fn().mockResolvedValue(undefined),
+    writeBuffer: jest.fn().mockResolvedValue(Buffer.from('test')),
+  },
+  addWorksheet: jest.fn().mockReturnValue({
+    getRow: jest.fn().mockReturnValue({ font: {}, fill: {}, alignment: {} }),
+    addRow: jest.fn().mockReturnValue({ getCell: jest.fn().mockReturnValue({ font: {} }) }),
+    eachRow: jest.fn(),
+    columns: [],
+  }),
+  getWorksheet: jest.fn(),
+  worksheets: [],
+};
+jest.mock('exceljs', () => ({
+  Workbook: jest.fn().mockImplementation(() => mockWorkbook),
+}));
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -21,7 +39,6 @@ describe('UsersService', () => {
     save: jest.fn(),
   };
 
-  // Create a proper mock that can be used as a constructor
   class MockUserModel {
     _id: string;
     nom: string;
@@ -152,7 +169,9 @@ describe('UsersService', () => {
     it('should return all users excluding archived by default', async () => {
       const users = [mockUser, { ...mockUser, email: 'jane@example.com' }];
       mockUserModel.find.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(users),
+        sort: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(users),
+        }),
       } as any);
 
       const result = await service.findAll();
@@ -166,7 +185,9 @@ describe('UsersService', () => {
     it('should return all users including archived when flag is true', async () => {
       const users = [mockUser, { ...mockUser, status: Status.ARCHIVED }];
       mockUserModel.find.mockReturnValue({
-        exec: jest.fn().mockResolvedValue(users),
+        sort: jest.fn().mockReturnValue({
+          exec: jest.fn().mockResolvedValue(users),
+        }),
       } as any);
 
       const result = await service.findAll(true);
@@ -338,7 +359,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         updateUserDto,
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 
@@ -366,7 +387,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.ACTIVE },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
   });
@@ -384,7 +405,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.INACTIVE },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
   });
@@ -402,7 +423,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.ARCHIVED },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
   });
@@ -420,7 +441,7 @@ describe('UsersService', () => {
       expect(mockUserModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { status: Status.INACTIVE },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
   });
@@ -449,6 +470,67 @@ describe('UsersService', () => {
       await expect(service.remove('507f1f77bcf86cd799439011')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  describe('importUsers', () => {
+    it('throws BadRequestException when no worksheet found', async () => {
+      mockWorkbook.getWorksheet.mockReturnValue(undefined);
+      mockWorkbook.worksheets = [];
+
+      const file = { buffer: Buffer.from('') };
+
+      await expect(service.importUsers(file)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('exportUsers', () => {
+    it('returns a buffer with exported users', async () => {
+      const mockUsers = [
+        {
+          nom: 'Doe',
+          prenom: 'John',
+          email: 'john@test.com',
+          role: Role.ADMIN,
+          status: Status.ACTIVE,
+        },
+      ];
+
+      mockUserModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue(mockUsers),
+        or: jest.fn().mockReturnThis(),
+      } as any);
+
+      const result = await service.exportUsers();
+
+      expect(result).toBeInstanceOf(Buffer);
+    });
+
+    it('applies search filter when provided', async () => {
+      mockUserModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+        or: jest.fn().mockReturnThis(),
+      } as any);
+
+      await service.exportUsers('john');
+
+      expect(mockUserModel.find).toHaveBeenCalled();
+    });
+
+    it('filters out archived users', async () => {
+      mockUserModel.find.mockReturnValue({
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([]),
+        or: jest.fn().mockReturnThis(),
+      } as any);
+
+      await service.exportUsers();
+
+      expect(mockUserModel.find).toHaveBeenCalledWith({
+        status: { $ne: Status.ARCHIVED },
+      });
     });
   });
 });

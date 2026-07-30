@@ -111,6 +111,7 @@ describe('TicketsController', () => {
         undefined,
         undefined,
         undefined,
+        undefined,
       );
     });
 
@@ -128,6 +129,7 @@ describe('TicketsController', () => {
       expect(service.findAll).toHaveBeenCalledWith(
         'user123',
         Role.CONSULTANT,
+        undefined,
         undefined,
         undefined,
         undefined,
@@ -156,6 +158,7 @@ describe('TicketsController', () => {
         'damaged',
         '2024-01-01',
         '2024-12-31',
+        undefined,
         undefined,
       );
     });

@@ -13,12 +13,15 @@ export enum NotificationType {
   TICKET_ASSIGNED = 'ticket_assigned',
   TICKET_STATUS_CHANGED = 'ticket_status_changed',
   TICKET_COMMENT_ADDED = 'ticket_comment_added',
+  CHAT_MESSAGE = 'chat_message',
+  MAINTENANCE_DUE = 'maintenance_due',
   OTHER = 'other',
 }
 
 export enum NotificationRecipientRole {
   ADMIN = 'ADMIN',
   IT = 'IT',
+  CONSULTANT = 'CONSULTANT',
 }
 
 @Schema({ timestamps: true })
@@ -44,6 +47,12 @@ export class Notification {
 
   @Prop({ type: [String], enum: NotificationRecipientRole, default: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT] })
   recipientRoles: NotificationRecipientRole[];
+
+  @Prop({ required: false })
+  referenceId?: string;
+
+  @Prop({ required: false })
+  referenceModel?: string;
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

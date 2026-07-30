@@ -44,8 +44,8 @@ export class UsersController {
   // GET /users?archived=true
   @Get()
   @UseGuards(JwtAuthGuard)
-  findAll(@Req() req: any, @Query('archived') archived?: string) {
-    return this.usersService.findAll(archived === 'true');
+  findAll(@Req() req: any, @Query('archived') archived?: string, @Query('sortOrder') sortOrder?: string) {
+    return this.usersService.findAll(archived === 'true', sortOrder);
   }
 
   // GET /users/archived

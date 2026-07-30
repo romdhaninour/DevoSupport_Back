@@ -20,4 +20,12 @@ export class CreateNotificationDto {
   @IsEnum(NotificationRecipientRole, { each: true })
   @IsOptional()
   recipientRoles?: NotificationRecipientRole[];
+
+  @IsString()
+  @IsOptional()
+  referenceId?: string;
+
+  @IsString()
+  @IsOptional()
+  referenceModel?: string;
 }

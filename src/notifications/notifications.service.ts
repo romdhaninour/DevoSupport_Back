@@ -68,7 +68,7 @@ export class NotificationsService {
 
   async markAsRead(id: string): Promise<Notification> {
     const notification = await this.notificationModel
-      .findByIdAndUpdate(id, { read: true }, { new: true })
+      .findByIdAndUpdate(id, { read: true }, { returnDocument: 'after' })
       .exec();
     if (!notification) {
       throw new NotFoundException(`Notification #${id} not found`);
@@ -98,5 +98,19 @@ export class NotificationsService {
 
   async clearAll(): Promise<{ deletedCount: number }> {
     return this.notificationModel.deleteMany({}).exec();
+  }
+
+  async findExistingByReference(
+    type: string,
+    referenceId: string,
+    since: Date,
+  ): Promise<Notification | null> {
+    return this.notificationModel
+      .findOne({
+        type: type as any,
+        referenceId,
+        createdAt: { $gte: since },
+      })
+      .exec();
   }
 }
