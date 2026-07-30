@@ -7,8 +7,9 @@ import { join } from 'path';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const allowedOrigins = process.env.CORS_ORIGIN || 'http://localhost:4200';
   app.enableCors({
-    origin: 'http://localhost:4200',
+    origin: allowedOrigins.split(',').map(o => o.trim()),
     credentials: true,
   });
 
@@ -17,6 +18,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe());
 
-  await app.listen(3000);
+  const port = process.env.PORT || 3000;
+  await app.listen(port);
 }
 bootstrap();
