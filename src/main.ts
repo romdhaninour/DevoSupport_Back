@@ -1,13 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as express from 'express';
 import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
 
-  const allowedOrigins = process.env.CORS_ORIGIN || 'http://localhost:4200';
+  const allowedOrigins = configService.get<string>('CORS_ORIGIN', 'http://localhost:4200');
   app.enableCors({
     origin: allowedOrigins.split(',').map(o => o.trim()),
     credentials: true,
@@ -18,7 +20,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(new ValidationPipe());
 
-  const port = process.env.PORT || 3000;
+  const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
 }
 bootstrap();

@@ -18,7 +18,7 @@ import { Role } from '../users/user.schema';
 
 @WebSocketGateway({
   cors: {
-    origin: '*',
+    origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : ['http://localhost:4200'],
   },
   transports: ['websocket', 'polling'],
   namespace: '/chat',
