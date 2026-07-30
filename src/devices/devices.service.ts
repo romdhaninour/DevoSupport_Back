@@ -665,10 +665,6 @@ export class DevicesService implements OnApplicationBootstrap {
       { header: 'Type', key: 'type', width: 15 },
       { header: 'Serial Number', key: 'serialNumber', width: 20 },
       { header: 'Status', key: 'status', width: 15 },
-      { header: 'Department', key: 'department', width: 20 },
-      { header: 'Owner', key: 'owner', width: 20 },
-      { header: 'Location', key: 'location', width: 15 },
-      { header: 'Purchase Date', key: 'purchaseDate', width: 15 },
     ];
 
     // Style header row
@@ -698,10 +694,6 @@ export class DevicesService implements OnApplicationBootstrap {
         type: device.type,
         serialNumber: device.serialNumber,
         status: formatDeviceStatusForExport(device.status),
-        department: device.department || '',
-        owner: device.owner || '',
-        location: device.location || '',
-        purchaseDate: device.purchaseDate || '',
       });
 
       // Zebra striping

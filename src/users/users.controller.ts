@@ -74,23 +74,16 @@ export class UsersController {
     return this.usersService.findByRole(role);
   }
 
-  // GET /users/:id
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
-
-  // GET /users/:id/profile-picture
+  // GET /users/:id/profile-picture (must be before the generic :id route)
   @Get(':id/profile-picture')
   async getProfilePicture(@Param('id') id: string, @Res() res: Response) {
-    const user = await this.usersService.findOne(id);
-    if (!user || !(user as any).profilePicture) {
-      return res.status(404).send('Profile picture not found');
-    }
-
-    const profilePictureUrl = (user as any).profilePicture;
-
     try {
+      const user = await this.usersService.findOne(id);
+      const profilePictureUrl = (user as any)?.profilePicture;
+      if (!profilePictureUrl) {
+        return res.status(404).send('Profile picture not found');
+      }
+
       const response = await fetch(profilePictureUrl);
       if (!response.ok) {
         throw new Error('Failed to fetch profile picture');
@@ -104,8 +97,14 @@ export class UsersController {
       res.send(buffer);
     } catch (error) {
       console.error('Error fetching profile picture:', error);
-      res.status(500).send('Failed to fetch profile picture');
+      res.status(404).send('Profile picture not found');
     }
+  }
+
+  // GET /users/:id
+  @Get(':id')
+  findOne(@Param('id') id: string) {
+    return this.usersService.findOne(id);
   }
 
   // PATCH /users/:id

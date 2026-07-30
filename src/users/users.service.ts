@@ -151,7 +151,13 @@ export class UsersService {
         for (const header of headers) {
           const colIndex = headerMap[header.toLowerCase()];
           if (colIndex) {
-            return row.getCell(colIndex).value?.toString()?.trim() || '';
+            const val = row.getCell(colIndex).value;
+            if (typeof val === 'object' && val !== null) {
+              if (val.text) return val.text.toString().trim();
+              if (val.richText) return val.richText.map((t: any) => t.text || '').join('').trim();
+              return (val as any).toString?.()?.trim() || '';
+            }
+            return val?.toString()?.trim() || '';
           }
         }
         return '';

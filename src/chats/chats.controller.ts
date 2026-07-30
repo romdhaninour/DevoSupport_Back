@@ -69,13 +69,14 @@ export class ChatsController {
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file', multerOptions))
-  async uploadFile(@UploadedFile() file: any) {
+  async uploadFile(@Req() req: any, @UploadedFile() file: any) {
     console.log('Upload request received:', file);
     if (!file) {
       console.error('No file uploaded');
       throw new Error('No file uploaded');
     }
-    const url = `http://localhost:3000/uploads/chats/${file.filename}`;
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const url = `${origin}/uploads/chats/${file.filename}`;
     console.log('Generated URL:', url);
     return { url };
   }
