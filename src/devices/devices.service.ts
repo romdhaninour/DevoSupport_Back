@@ -133,7 +133,7 @@ export class DevicesService implements OnApplicationBootstrap {
             ? `Maintenance due today for device "${device.name}"`
             : `Maintenance due tomorrow for device "${device.name}"`,
           type: NotificationType.MAINTENANCE_DUE,
-          userEmail: device.email || '',
+        userEmail: device.email || 'N/A',
           userName: device.owner || 'Unknown',
           recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
           referenceId: String(device._id),
@@ -176,6 +176,27 @@ export class DevicesService implements OnApplicationBootstrap {
     return createdDevice.save();
   }
 
+  private async resolveUserNames(device: any): Promise<any> {
+    const obj = device.toObject ? device.toObject() : { ...device };
+    if (obj.assignedTo) {
+      try {
+        const user = await this.usersService.findOne(obj.assignedTo);
+        obj.assignedToName = user ? `${user.prenom} ${user.nom}` : obj.assignedTo;
+      } catch {
+        obj.assignedToName = obj.assignedTo;
+      }
+    }
+    if (obj.assignedBy) {
+      try {
+        const user = await this.usersService.findOne(obj.assignedBy);
+        obj.assignedByName = user ? `${user.prenom} ${user.nom}` : obj.assignedBy;
+      } catch {
+        obj.assignedByName = obj.assignedBy;
+      }
+    }
+    return obj;
+  }
+
   async findAll(
     page?: string,
     limit?: string,
@@ -184,7 +205,7 @@ export class DevicesService implements OnApplicationBootstrap {
     type?: string,
     sortOrder?: string,
   ): Promise<{
-    devices: Device[];
+    devices: any[];
     total: number;
     page: number;
     limit: number;
@@ -219,7 +240,9 @@ export class DevicesService implements OnApplicationBootstrap {
       query.clone().countDocuments().exec(),
     ]);
 
-    return { devices, total, page: pageNum, limit: limitNum };
+    const enriched = await Promise.all(devices.map((d) => this.resolveUserNames(d)));
+
+    return { devices: enriched, total, page: pageNum, limit: limitNum };
   }
 
   async findAssigned(
@@ -267,7 +290,9 @@ export class DevicesService implements OnApplicationBootstrap {
       query.clone().countDocuments().exec(),
     ]);
 
-    return { devices, total, page: pageNum, limit: limitNum };
+    const enriched = await Promise.all(devices.map((d) => this.resolveUserNames(d)));
+
+    return { devices: enriched, total, page: pageNum, limit: limitNum };
   }
 
   async findOne(id: string): Promise<Device> {
@@ -282,7 +307,7 @@ export class DevicesService implements OnApplicationBootstrap {
     userId: string,
     role: Role,
     id: string,
-  ): Promise<Device> {
+  ): Promise<any> {
     const device = await this.findOne(id);
 
     if (role === Role.CONSULTANT) {
@@ -291,7 +316,27 @@ export class DevicesService implements OnApplicationBootstrap {
       }
     }
 
-    return device;
+    const deviceObj = device.toObject();
+
+    if (deviceObj.assignedTo) {
+      try {
+        const user = await this.usersService.findOne(deviceObj.assignedTo);
+        deviceObj.assignedToName = user ? `${user.prenom} ${user.nom}` : deviceObj.assignedTo;
+      } catch {
+        deviceObj.assignedToName = deviceObj.assignedTo;
+      }
+    }
+
+    if (deviceObj.assignedBy) {
+      try {
+        const user = await this.usersService.findOne(deviceObj.assignedBy);
+        deviceObj.assignedByName = user ? `${user.prenom} ${user.nom}` : deviceObj.assignedBy;
+      } catch {
+        deviceObj.assignedByName = deviceObj.assignedBy;
+      }
+    }
+
+    return deviceObj;
   }
 
   async update(
@@ -374,7 +419,7 @@ export class DevicesService implements OnApplicationBootstrap {
       await this.notificationsService.create({
         message: `Device "${device.name}" status changed to ${updateStatusDto.status}`,
         type: NotificationType.DEVICE_STATUS_CHANGED,
-        userEmail: device.email || '',
+        userEmail: device.email || 'N/A',
         userName: device.owner || 'Unknown',
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
         referenceId: id,
@@ -450,7 +495,7 @@ export class DevicesService implements OnApplicationBootstrap {
         await this.notificationsService.create({
           message: `Device "${device.name}" has been allocated to ${consultantName} by ${assignedByName}`,
           type: NotificationType.DEVICE_ALLOCATED,
-          userEmail: consultant.email,
+          userEmail: consultant?.email || 'N/A',
           userName: consultantName,
           recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
           referenceId: deviceId,
@@ -504,7 +549,7 @@ export class DevicesService implements OnApplicationBootstrap {
       await this.notificationsService.create({
         message: `Device "${device.name}" has been returned and is now available`,
         type: NotificationType.DEVICE_RETURNED,
-        userEmail: device.email || '',
+        userEmail: device.email || 'N/A',
         userName: device.owner || 'Unknown',
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
         referenceId: deviceId,

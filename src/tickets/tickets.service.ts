@@ -45,10 +45,7 @@ export class TicketsService {
       throw new ForbiddenException('You can only create tickets for devices assigned to you');
     }
 
-    await this.devicesService.updateStatus(createTicketDto.deviceId, {
-      status: 'maintenance',
-    } as any);
-
+    // IT staff can change the device status separately when needed
     const createdTicket = new this.ticketModel({
       ...createTicketDto,
       device: new Types.ObjectId(createTicketDto.deviceId),
@@ -316,7 +313,7 @@ export class TicketsService {
       await this.notificationsService.create({
         message: `New comment on ticket "${ticket.title}" by ${commenterName}`,
         type: NotificationType.TICKET_COMMENT_ADDED,
-        userEmail: user?.email || '',
+        userEmail: user?.email || 'N/A',
         userName: commenterName,
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
         referenceId: savedTicket._id.toString(),

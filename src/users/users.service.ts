@@ -157,9 +157,9 @@ export class UsersService {
         return '';
       };
 
-      const nom = getValue(['nom', 'name', 'last_name', 'nom de famille']);
-      const prenom = getValue(['prenom', 'prénom', 'first_name', 'firstName']);
-      const email = getValue(['email', 'mail', 'email address']);
+      const nom = getValue(['nom', 'name', 'last_name', 'nom de famille', 'lastname', 'surname']);
+      const prenom = getValue(['prenom', 'prénom', 'first_name', 'firstName', 'prenom', 'given_name', 'givenname']);
+      const email = getValue(['email', 'mail', 'email address', 'e-mail', 'courriel', 'adresse email', 'adresse e-mail']);
       const role = getValue(['role', 'rôle']) || 'CONSULTANT';
 
       if (!nom || !prenom || !email) {
