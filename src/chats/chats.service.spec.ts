@@ -18,17 +18,20 @@ describe('ChatsService', () => {
     read: false,
     createdAt: new Date(),
     updatedAt: new Date(),
-    save: jest.fn().mockResolvedValue(this),
-    populate: jest.fn().mockReturnThis(),
-    exec: jest.fn().mockResolvedValue(this),
   };
 
-  const mockChatModel = {
-    new: jest.fn().mockReturnValue(mockChat),
-    find: jest.fn().mockReturnValue(mockChat),
-    findById: jest.fn().mockReturnValue(mockChat),
-    updateMany: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+  const createMockChatInstance = (data: any = {}) => {
+    const instance = { ...mockChat, ...data };
+    instance.save = jest.fn().mockImplementation(function () { return Promise.resolve(this); });
+    return instance;
   };
+
+  const mockChatModel = jest.fn().mockImplementation((data: any) => createMockChatInstance(data));
+  mockChatModel.find = jest.fn();
+  mockChatModel.findById = jest.fn();
+  mockChatModel.updateMany = jest.fn().mockResolvedValue({ modifiedCount: 1 });
+
+  jest.spyOn(console, 'log').mockImplementation(() => {});
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,17 +57,34 @@ describe('ChatsService', () => {
   });
 
   describe('createMessage', () => {
+    beforeEach(() => {
+      mockChatModel.findById.mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue({
+          _id: '507f1f77bcf86cd799439011',
+          sender: 'senderId',
+          receiver: 'receiverId',
+          message: 'Test message',
+          read: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      });
+    });
+
     it('should create a new message with valid roles', async () => {
       const result = await service.createMessage('senderId', 'receiverId', 'Test message', Role.IT, Role.CONSULTANT);
       
-      expect(mockChatModel.new).toHaveBeenCalledWith({
+      expect(mockChatModel).toHaveBeenCalledWith({
         sender: 'senderId',
         receiver: 'receiverId',
         message: 'Test message',
         read: false,
       });
-      expect(mockChat.save).toHaveBeenCalled();
-      expect(result).toEqual(mockChat);
+      expect(result).toBeDefined();
+      expect(result.sender).toBe('senderId');
+      expect(result.receiver).toBe('receiverId');
+      expect(result.message).toBe('Test message');
     });
 
     it('should throw ForbiddenException for disallowed conversation', async () => {
@@ -76,20 +96,32 @@ describe('ChatsService', () => {
     it('should allow IT to ADMIN conversation', async () => {
       const result = await service.createMessage('senderId', 'receiverId', 'Test message', Role.IT, Role.ADMIN);
       
-      expect(mockChatModel.new).toHaveBeenCalled();
-      expect(result).toEqual(mockChat);
+      expect(mockChatModel).toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
 
     it('should allow Consultant to IT conversation', async () => {
       const result = await service.createMessage('senderId', 'receiverId', 'Test message', Role.CONSULTANT, Role.IT);
       
-      expect(mockChatModel.new).toHaveBeenCalled();
-      expect(result).toEqual(mockChat);
+      expect(mockChatModel).toHaveBeenCalled();
+      expect(result).toBeDefined();
     });
 
     it('should throw ForbiddenException for Consultant to ADMIN conversation', async () => {
       await expect(
         service.createMessage('senderId', 'receiverId', 'Test message', Role.CONSULTANT, Role.ADMIN)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException for Consultant to Consultant conversation', async () => {
+      await expect(
+        service.createMessage('senderId', 'receiverId', 'Test message', Role.CONSULTANT, Role.CONSULTANT)
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException for ADMIN to Consultant conversation', async () => {
+      await expect(
+        service.createMessage('senderId', 'receiverId', 'Test message', Role.ADMIN, Role.CONSULTANT)
       ).rejects.toThrow(ForbiddenException);
     });
   });
@@ -137,27 +169,27 @@ describe('ChatsService', () => {
 
   describe('markAsRead', () => {
     it('should mark a message as read', async () => {
-      const message = { ...mockChat, receiver: 'userId' };
-      mockChatModel.findById.mockResolvedValue(message);
+      const messageInstance = createMockChatInstance({ receiver: 'userId' });
+      mockChatModel.findById.mockReturnValue(messageInstance);
 
       const result = await service.markAsRead('messageId', 'userId');
       
       expect(mockChatModel.findById).toHaveBeenCalledWith('messageId');
-      expect(message.read).toBe(true);
-      expect(message.save).toHaveBeenCalled();
-      expect(result).toEqual(message);
+      expect(messageInstance.read).toBe(true);
+      expect(messageInstance.save).toHaveBeenCalled();
+      expect(result).toEqual(messageInstance);
     });
 
     it('should throw NotFoundException if message not found', async () => {
-      mockChatModel.findById.mockResolvedValue(null);
+      mockChatModel.findById.mockReturnValue(null);
 
       await expect(service.markAsRead('messageId', 'userId'))
         .rejects.toThrow(NotFoundException);
     });
 
     it('should throw ForbiddenException if user is not receiver', async () => {
-      const message = { ...mockChat, receiver: 'otherUserId' };
-      mockChatModel.findById.mockResolvedValue(message);
+      const messageInstance = createMockChatInstance({ receiver: 'otherUserId' });
+      mockChatModel.findById.mockReturnValue(messageInstance);
 
       await expect(service.markAsRead('messageId', 'userId'))
         .rejects.toThrow(ForbiddenException);
@@ -197,18 +229,18 @@ describe('ChatsService', () => {
       const result = await service.getConversationsForUser('userId', Role.CONSULTANT);
       
       expect(mockChatModel.find).toHaveBeenCalled();
-      expect(result.length).toBe(1); // Only IT conversation should be included
+      expect(result.length).toBe(1);
     });
 
     it('should get conversations for IT user (with Consultants and ADMIN)', async () => {
       const mockChatWithConsultant = { 
         ...mockChat, 
-        sender: { _id: 'senderId', role: 'CONSULTANT' },
+        sender: { _id: 'consultantSenderId', role: 'CONSULTANT' },
         receiver: { _id: 'userId', role: 'IT' }
       };
       const mockChatWithAdmin = { 
         ...mockChat, 
-        sender: { _id: 'senderId', role: 'ADMIN' },
+        sender: { _id: 'adminSenderId', role: 'ADMIN' },
         receiver: { _id: 'userId', role: 'IT' }
       };
       
@@ -221,7 +253,7 @@ describe('ChatsService', () => {
       const result = await service.getConversationsForUser('userId', Role.IT);
       
       expect(mockChatModel.find).toHaveBeenCalled();
-      expect(result.length).toBe(2); // Both should be included
+      expect(result.length).toBe(2);
     });
 
     it('should get conversations for ADMIN user (only with IT)', async () => {
@@ -245,7 +277,7 @@ describe('ChatsService', () => {
       const result = await service.getConversationsForUser('userId', Role.ADMIN);
       
       expect(mockChatModel.find).toHaveBeenCalled();
-      expect(result.length).toBe(1); // Only IT conversation should be included
+      expect(result.length).toBe(1);
     });
 
     it('should calculate unread count correctly', async () => {
@@ -272,6 +304,56 @@ describe('ChatsService', () => {
       
       expect(result.length).toBe(1);
       expect(result[0].unreadCount).toBe(1);
+    });
+
+    it('should handle conversations where user is the sender', async () => {
+      const mockChatUserSender = { 
+        ...mockChat, 
+        sender: { _id: 'userId', role: 'CONSULTANT' },
+        receiver: { _id: 'partnerId', role: 'IT' },
+        read: false
+      };
+      
+      mockChatModel.find.mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([mockChatUserSender]),
+      });
+
+      const result = await service.getConversationsForUser('userId', Role.CONSULTANT);
+      
+      expect(result.length).toBe(1);
+      expect(result[0].partner._id).toBe('partnerId');
+    });
+
+    it('should sort conversations by latest message date', async () => {
+      const olderDate = new Date('2026-01-01');
+      const newerDate = new Date('2026-06-01');
+      const mockChatOlder = { 
+        ...mockChat, 
+        createdAt: olderDate,
+        sender: { _id: 'partner1', role: 'IT' },
+        receiver: { _id: 'userId', role: 'CONSULTANT' },
+      };
+      const mockChatNewer = { 
+        ...mockChat, 
+        createdAt: newerDate,
+        sender: { _id: 'partner2', role: 'IT' },
+        receiver: { _id: 'userId', role: 'CONSULTANT' },
+      };
+      
+      mockChatModel.find.mockReturnValue({
+        populate: jest.fn().mockReturnThis(),
+        sort: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([mockChatOlder, mockChatNewer]),
+      });
+
+      const result = await service.getConversationsForUser('userId', Role.CONSULTANT);
+      
+      expect(result.length).toBe(2);
+      expect(new Date(result[0].lastMessage.createdAt).getTime()).toBeGreaterThanOrEqual(
+        new Date(result[1].lastMessage.createdAt).getTime(),
+      );
     });
   });
 
@@ -316,6 +398,12 @@ describe('ChatsService', () => {
       const serviceInstance = new ChatsService(mockChatModel as any);
       const result = (serviceInstance as any).isConversationAllowed(Role.CONSULTANT, 'IT');
       expect(result).toBe(true);
+    });
+
+    it('should return false for unknown role', () => {
+      const serviceInstance = new ChatsService(mockChatModel as any);
+      const result = (serviceInstance as any).isConversationAllowed('UNKNOWN', 'IT');
+      expect(result).toBe(false);
     });
   });
 });

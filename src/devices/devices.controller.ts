@@ -98,6 +98,7 @@ export class DevicesController {
     @Query('search') search?: string,
     @Query('status') status?: string,
     @Query('type') type?: string,
+    @Query('sortOrder') sortOrder?: string,
   ) {
     const userRole = req.user?.role;
     const userId = req.user?.userId || req.user?.sub;
@@ -106,7 +107,7 @@ export class DevicesController {
       throw new ForbiddenException('Only IT and ADMIN can view all devices');
     }
 
-    return this.devicesService.findAll(page, limit, search, status, type);
+    return this.devicesService.findAll(page, limit, search, status, type, sortOrder);
   }
 
   @Get('assigned')
@@ -117,6 +118,7 @@ export class DevicesController {
     @Query('limit') limit?: string,
     @Query('search') search?: string,
     @Query('userId') userIdQuery?: string,
+    @Query('sortOrder') sortOrder?: string,
   ) {
     const userRole = req.user?.role;
     const userId = req.user?.userId || req.user?.sub;
@@ -128,7 +130,25 @@ export class DevicesController {
       limit,
       search,
       userIdQuery,
+      sortOrder,
     );
+  }
+
+  @Get('with-maintenance')
+  @UseGuards(JwtAuthGuard)
+  async getDevicesWithMaintenance(
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+  ) {
+    const m = month !== undefined ? parseInt(month, 10) : undefined;
+    const y = year !== undefined ? parseInt(year, 10) : undefined;
+    return this.devicesService.findAllWithMaintenance(m, y);
+  }
+
+  @Get('without-maintenance')
+  @UseGuards(JwtAuthGuard)
+  async getDevicesWithoutMaintenance() {
+    return this.devicesService.getDevicesWithoutMaintenance();
   }
 
   @Get(':id')
@@ -141,37 +161,17 @@ export class DevicesController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
-  @UseInterceptors(
-    FileInterceptor('photo', {
-      storage: devicePhotoStorage,
-      fileFilter: devicePhotoFilter,
-      limits: { fileSize: 5 * 1024 * 1024 },
-    }),
-    ImageCompressionInterceptor,
-  )
   async update(
     @Req() req: any,
     @Param('id') id: string,
     @Body() updateDeviceDto: any,
-    @UploadedFile() file: any,
   ) {
     const userRole = req.user?.role;
     if (userRole !== Role.IT && userRole !== Role.ADMIN) {
       throw new ForbiddenException('Only IT staff can manage devices');
     }
 
-    const updatedDevice = await this.devicesService.update(id, updateDeviceDto);
-
-    if (file) {
-      const origin = `${req.protocol}://${req.get('host')}`;
-      await this.devicesService.addPhoto(
-        id,
-        `${origin}/uploads/devices/${file.filename}`,
-      );
-      return this.devicesService.findOne(id);
-    }
-
-    return updatedDevice;
+    return await this.devicesService.update(id, updateDeviceDto);
   }
 
   @Patch(':id/status')
@@ -308,5 +308,32 @@ export class DevicesController {
     res.setHeader('Content-Length', buffer.length);
 
     res.send(buffer);
+  }
+
+  @Patch(':id/maintenance')
+  @UseGuards(JwtAuthGuard)
+  async updateDeviceMaintenance(
+    @Req() req: any,
+    @Param('id') id: string,
+    @Body() body: { maintenanceDescription?: string; maintenanceEndDate?: string; maintenanceFrequency?: string },
+  ) {
+    const userRole = req.user?.role;
+    if (userRole !== Role.IT && userRole !== Role.ADMIN) {
+      throw new ForbiddenException('Only IT staff can update device maintenance');
+    }
+    return this.devicesService.updateMaintenance(id, body);
+  }
+
+  @Patch(':id/mark-maintained')
+  @UseGuards(JwtAuthGuard)
+  async markDeviceAsMaintained(
+    @Req() req: any,
+    @Param('id') id: string,
+  ) {
+    const userRole = req.user?.role;
+    if (userRole !== Role.IT && userRole !== Role.ADMIN) {
+      throw new ForbiddenException('Only IT staff can mark devices as maintained');
+    }
+    return this.devicesService.markDeviceAsMaintained(id);
   }
 }

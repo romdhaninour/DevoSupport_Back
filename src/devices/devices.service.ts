@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  OnApplicationBootstrap,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -11,6 +12,8 @@ import {
   DeviceDocument,
   DeviceStatus,
   DeviceType,
+  MaintenanceFrequency,
+  MaintenanceFrequencyLabels,
 } from './device.schema';
 import { UsersService } from '../users/users.service';
 import { Role } from '../users/user.schema';
@@ -79,10 +82,15 @@ export interface CreateDeviceDto {
   location: string;
   serialNumber: string;
   purchaseDate?: string;
+  maintenanceEnabled?: boolean;
+  maintenanceType?: string;
+  maintenanceStartDate?: string;
+  maintenanceEndDate?: string;
+  maintenanceFrequency?: string;
 }
 
 @Injectable()
-export class DevicesService {
+export class DevicesService implements OnApplicationBootstrap {
   constructor(
     @InjectModel(Device.name)
     private readonly deviceModel: Model<DeviceDocument>,
@@ -90,11 +98,58 @@ export class DevicesService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
+  async onApplicationBootstrap() {
+    setTimeout(() => this.checkMaintenanceDueDates(), 15000);
+    setInterval(() => this.checkMaintenanceDueDates(), 60 * 60 * 1000);
+  }
+
+  private async checkMaintenanceDueDates() {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfter = new Date(today);
+      dayAfter.setDate(dayAfter.getDate() + 2);
+
+      const devices = await this.deviceModel.find({
+        maintenanceEnabled: true,
+        maintenanceEndDate: { $gte: today, $lt: dayAfter },
+      }).exec();
+
+      for (const device of devices) {
+        const isToday = device.maintenanceEndDate && device.maintenanceEndDate >= today && device.maintenanceEndDate < tomorrow;
+
+        const existingNotif = await this.notificationsService.findExistingByReference(
+          NotificationType.MAINTENANCE_DUE,
+          String(device._id),
+          today,
+        );
+
+        if (existingNotif) continue;
+
+        await this.notificationsService.create({
+          message: isToday
+            ? `Maintenance due today for device "${device.name}"`
+            : `Maintenance due tomorrow for device "${device.name}"`,
+          type: NotificationType.MAINTENANCE_DUE,
+          userEmail: device.email || '',
+          userName: device.owner || 'Unknown',
+          recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+          referenceId: String(device._id),
+          referenceModel: 'Device',
+        });
+      }
+    } catch (e) {
+      console.error('Failed to check maintenance due dates:', e);
+    }
+  }
+
   async create(createDeviceDto: CreateDeviceDto): Promise<Device> {
     const status =
       normalizeDeviceStatus(createDeviceDto.status || 'available') ||
       'available';
-    const payload = {
+    const payload: any = {
       ...createDeviceDto,
       status,
       department: createDeviceDto.department || 'Non spécifié',
@@ -103,6 +158,20 @@ export class DevicesService {
       location: createDeviceDto.location || 'À définir',
       serialNumber: createDeviceDto.serialNumber || `AUTO-${Date.now()}`,
     };
+
+    // Auto-calculate nextMaintenanceDate if maintenance is enabled
+    if (payload.maintenanceEnabled && payload.maintenanceStartDate) {
+      const startDate = new Date(payload.maintenanceStartDate);
+      if (payload.maintenanceFrequency) {
+        const freqMonths = this.getFrequencyMonths(payload.maintenanceFrequency);
+        const nextDate = new Date(startDate);
+        nextDate.setMonth(nextDate.getMonth() + freqMonths);
+        payload.nextMaintenanceDate = nextDate;
+      } else if (payload.maintenanceEndDate) {
+        payload.nextMaintenanceDate = new Date(payload.maintenanceEndDate);
+      }
+    }
+
     const createdDevice = new this.deviceModel(payload);
     return createdDevice.save();
   }
@@ -113,6 +182,7 @@ export class DevicesService {
     search?: string,
     status?: string,
     type?: string,
+    sortOrder?: string,
   ): Promise<{
     devices: Device[];
     total: number;
@@ -142,8 +212,10 @@ export class DevicesService {
       query = query.where({ type });
     }
 
+    const sort = sortOrder === 'asc' ? { createdAt: 1 as const } : { createdAt: -1 as const };
+
     const [devices, total] = await Promise.all([
-      query.clone().sort({ createdAt: -1 }).skip(skip).limit(limitNum).exec(),
+      query.clone().sort(sort).skip(skip).limit(limitNum).exec(),
       query.clone().countDocuments().exec(),
     ]);
 
@@ -157,6 +229,7 @@ export class DevicesService {
     limit?: string,
     search?: string,
     forUserId?: string,
+    sortOrder?: string,
   ): Promise<{
     devices: Device[];
     total: number;
@@ -187,8 +260,10 @@ export class DevicesService {
       ]);
     }
 
+    const sort = sortOrder === 'asc' ? { createdAt: 1 as const } : { createdAt: -1 as const };
+
     const [devices, total] = await Promise.all([
-      query.clone().sort({ createdAt: -1 }).skip(skip).limit(limitNum).exec(),
+      query.clone().sort(sort).skip(skip).limit(limitNum).exec(),
       query.clone().countDocuments().exec(),
     ]);
 
@@ -223,8 +298,27 @@ export class DevicesService {
     id: string,
     updateDeviceDto: Partial<CreateDeviceDto>,
   ): Promise<Device> {
+    const payload: any = { ...updateDeviceDto };
+
+    // Auto-calculate nextMaintenanceDate if maintenance fields are being updated
+    if (payload.maintenanceEnabled && payload.maintenanceStartDate) {
+      const startDate = new Date(payload.maintenanceStartDate);
+      if (payload.maintenanceFrequency) {
+        const freqMonths = this.getFrequencyMonths(payload.maintenanceFrequency);
+        const nextDate = new Date(startDate);
+        nextDate.setMonth(nextDate.getMonth() + freqMonths);
+        payload.nextMaintenanceDate = nextDate;
+      } else if (payload.maintenanceEndDate) {
+        payload.nextMaintenanceDate = new Date(payload.maintenanceEndDate);
+      }
+    } else if (payload.maintenanceEnabled === false) {
+      payload.nextMaintenanceDate = null;
+      payload.maintenanceEndDate = null;
+      payload.lastMaintenanceDate = null;
+    }
+
     const device = await this.deviceModel
-      .findByIdAndUpdate(id, updateDeviceDto, { returnDocument: 'after' })
+      .findByIdAndUpdate(id, payload, { returnDocument: 'after' })
       .exec();
     if (!device) {
       throw new NotFoundException('Device not found');
@@ -283,6 +377,8 @@ export class DevicesService {
         userEmail: device.email || '',
         userName: device.owner || 'Unknown',
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        referenceId: id,
+        referenceModel: 'Device',
       });
     } catch (e) {
       console.error('Failed to create device status notification', e);
@@ -357,6 +453,8 @@ export class DevicesService {
           userEmail: consultant.email,
           userName: consultantName,
           recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+          referenceId: deviceId,
+          referenceModel: 'Device',
         });
       } catch (e) {
         console.error('Failed to create device allocation notification', e);
@@ -409,6 +507,8 @@ export class DevicesService {
         userEmail: device.email || '',
         userName: device.owner || 'Unknown',
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        referenceId: deviceId,
+        referenceModel: 'Device',
       });
     } catch (e) {
       console.error('Failed to create device return notification', e);
@@ -584,5 +684,105 @@ export class DevicesService {
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
     return Buffer.from(buffer);
+  }
+
+  async findAllWithMaintenance(month?: number, year?: number): Promise<any[]> {
+    let query = this.deviceModel.find({ maintenanceEnabled: true });
+
+    if (month !== undefined && year !== undefined) {
+      const startDate = new Date(year, month - 1, 1);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(year, month, 0);
+      endDate.setHours(23, 59, 59, 999);
+      query = query.where({ nextMaintenanceDate: { $gte: startDate, $lte: endDate } });
+    } else if (year !== undefined) {
+      const startDate = new Date(year, 0, 1);
+      startDate.setHours(0, 0, 0, 0);
+      const endDate = new Date(year, 11, 31);
+      endDate.setHours(23, 59, 59, 999);
+      query = query.where({ nextMaintenanceDate: { $gte: startDate, $lte: endDate } });
+    }
+
+    return query.sort({ nextMaintenanceDate: 1 }).exec();
+  }
+
+  async getDevicesWithoutMaintenance(): Promise<any[]> {
+    return this.deviceModel.find({ maintenanceEnabled: { $ne: true } }).exec();
+  }
+
+  async updateMaintenance(
+    id: string,
+    updateDto: { maintenanceDescription?: string; maintenanceEndDate?: string; maintenanceFrequency?: string },
+  ): Promise<any> {
+    const device = await this.deviceModel.findById(id).exec();
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const payload: any = {};
+    if (updateDto.maintenanceDescription !== undefined) payload.maintenanceDescription = updateDto.maintenanceDescription;
+    if (updateDto.maintenanceEndDate) {
+      payload.maintenanceEndDate = new Date(updateDto.maintenanceEndDate);
+    }
+    if (updateDto.maintenanceFrequency) {
+      payload.maintenanceFrequency = updateDto.maintenanceFrequency;
+    }
+
+    return this.deviceModel.findByIdAndUpdate(id, payload, { returnDocument: 'after' }).exec();
+  }
+
+  async markDeviceAsMaintained(id: string): Promise<Device> {
+    const device = await this.deviceModel.findById(id).exec();
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    if (!device.maintenanceEnabled) {
+      throw new BadRequestException('Device does not have maintenance enabled');
+    }
+
+    const now = new Date();
+    let nextEndDate: Date;
+
+    if (device.maintenanceFrequency && device.maintenanceStartDate) {
+      const freqMonths = this.getFrequencyMonths(device.maintenanceFrequency);
+      nextEndDate = new Date(now);
+      nextEndDate.setMonth(nextEndDate.getMonth() + freqMonths);
+    } else if (device.maintenanceStartDate && device.maintenanceEndDate) {
+      const duration = device.maintenanceEndDate.getTime() - device.maintenanceStartDate.getTime();
+      nextEndDate = new Date(now.getTime() + duration);
+    } else {
+      throw new BadRequestException('Insufficient maintenance data to calculate next date');
+    }
+
+    const updated = await this.deviceModel
+      .findByIdAndUpdate(
+        id,
+        {
+          lastMaintenanceDate: now,
+          maintenanceStartDate: now,
+          maintenanceEndDate: nextEndDate,
+          nextMaintenanceDate: nextEndDate,
+        },
+        { returnDocument: 'after' },
+      )
+      .exec();
+
+    if (!updated) {
+      throw new NotFoundException('Device not found');
+    }
+
+    return updated;
+  }
+
+  private getFrequencyMonths(frequency: MaintenanceFrequency): number {
+    switch (frequency) {
+      case '1month': return 1;
+      case '3months': return 3;
+      case '6months': return 6;
+      case '9months': return 9;
+      case '1year': return 12;
+      default: return 1;
+    }
   }
 }

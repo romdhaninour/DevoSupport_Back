@@ -4,6 +4,7 @@ import { getModelToken } from '@nestjs/mongoose';
 import { Notification } from './notification.schema';
 import { NotFoundException } from '@nestjs/common';
 import { Model } from 'mongoose';
+import { NotificationsGateway } from './notifications.gateway';
 
 describe('NotificationsService', () => {
   let service: NotificationsService;
@@ -44,6 +45,12 @@ describe('NotificationsService', () => {
         {
           provide: getModelToken(Notification.name),
           useValue: mockNotificationModel,
+        },
+        {
+          provide: NotificationsGateway,
+          useValue: {
+            broadcastNotification: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -155,7 +162,7 @@ describe('NotificationsService', () => {
       expect(mockNotificationModel.findByIdAndUpdate).toHaveBeenCalledWith(
         '507f1f77bcf86cd799439011',
         { read: true },
-        { new: true },
+        { returnDocument: 'after' },
       );
     });
 

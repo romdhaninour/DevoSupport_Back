@@ -30,6 +30,7 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         userId: '507f1f77bcf86cd799439011',
+        sub: '507f1f77bcf86cd799439011',
         email: 'john.doe@example.com',
         role: Role.ADMIN,
         status: Status.ACTIVE,
@@ -48,6 +49,7 @@ describe('JwtStrategy', () => {
 
       expect(result).toEqual({
         userId: '507f1f77bcf86cd799439011',
+        sub: '507f1f77bcf86cd799439011',
         email: 'jane@example.com',
         role: Role.IT,
         status: Status.INACTIVE,

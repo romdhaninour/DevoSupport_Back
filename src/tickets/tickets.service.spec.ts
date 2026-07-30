@@ -60,13 +60,15 @@ describe('TicketsService', () => {
 
   const createQueryChain = (result: any) => {
     if (!result) {
-      return {
+      const chain = {
         where: jest.fn().mockReturnThis(),
         sort: jest.fn().mockReturnThis(),
         populate: jest.fn().mockReturnThis(),
         getFilter: jest.fn().mockReturnValue({}),
         exec: jest.fn().mockResolvedValue(null),
+        then: (resolve: any, reject: any) => Promise.resolve(null).then(resolve, reject),
       };
+      return chain;
     }
     
     const ticketWithMethods = {
@@ -80,14 +82,29 @@ describe('TicketsService', () => {
       toString: function() { return this._id.toString(); },
     };
     
-    return {
+    const chain = {
       where: jest.fn().mockReturnThis(),
       sort: jest.fn().mockReturnThis(),
       populate: jest.fn().mockReturnThis(),
       getFilter: jest.fn().mockReturnValue({}),
       exec: jest.fn().mockResolvedValue(ticketWithMethods),
+      then: (resolve: any, reject: any) => Promise.resolve(ticketWithMethods).then(resolve, reject),
     };
+    
+    return chain;
   };
+
+  const mockTicketModel = jest.fn().mockImplementation((data: any) => ({
+    ...data,
+    save: jest.fn().mockResolvedValue({ ...mockTicketData, ...data }),
+  }));
+  mockTicketModel.find = jest.fn().mockImplementation(() => createQueryChain([mockTicket]));
+  mockTicketModel.findById = jest.fn().mockImplementation((id: string) => {
+    return createQueryChain({ ...mockTicket, _id: id });
+  });
+  mockTicketModel.countDocuments = jest.fn().mockReturnValue({
+    exec: jest.fn().mockResolvedValue(1),
+  });
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -95,21 +112,7 @@ describe('TicketsService', () => {
         TicketsService,
         {
           provide: getModelToken(Ticket.name),
-          useValue: {
-            new: jest.fn().mockImplementation((data: any) => ({
-              ...data,
-              save: jest.fn().mockResolvedValue({ ...mockTicketData, ...data }),
-            })),
-            constructor: jest.fn().mockResolvedValue(mockTicket),
-            find: jest.fn().mockImplementation(() => createQueryChain([mockTicket])),
-            findById: jest.fn().mockImplementation((id: string) => {
-              // Return a fresh ticket with methods for each findById call
-              return createQueryChain({ ...mockTicket, _id: id });
-            }),
-            countDocuments: jest.fn().mockReturnValue({
-              exec: jest.fn().mockResolvedValue(1),
-            }),
-          },
+          useValue: mockTicketModel,
         },
         {
           provide: UsersService,
@@ -137,6 +140,15 @@ describe('TicketsService', () => {
     ticketModel = module.get(getModelToken(Ticket.name));
     devicesService = module.get(DevicesService);
     usersService = module.get(UsersService);
+  });
+
+  afterEach(() => {
+    mockTicketModel.findById.mockImplementation((id: string) => {
+      return createQueryChain({ ...mockTicket, _id: id });
+    });
+    mockTicketModel.find.mockImplementation(() => createQueryChain([mockTicket]));
+    usersService.findOne.mockResolvedValue(mockITUser);
+    devicesService.findOne.mockResolvedValue(mockDevice);
   });
 
   it('should be defined', () => {
@@ -187,6 +199,7 @@ describe('TicketsService', () => {
 
       const unassignedDevice = { ...mockDevice, assignedTo: 'otherUser' };
       devicesService.findOne.mockResolvedValue(unassignedDevice);
+      usersService.findOne.mockResolvedValue(mockUser);
 
       await expect(service.create('507f1f77bcf86cd799439013', createTicketDto)).rejects.toThrow(
         ForbiddenException,
@@ -273,7 +286,7 @@ describe('TicketsService', () => {
     });
 
     it('should throw NotFoundException when ticket does not exist', async () => {
-      ticketModel.findById.mockResolvedValue(null);
+      ticketModel.findById.mockImplementation(() => createQueryChain(null));
 
       await expect(service.findOne('nonexistent', '507f1f77bcf86cd799439013', Role.CONSULTANT)).rejects.toThrow(
         NotFoundException,

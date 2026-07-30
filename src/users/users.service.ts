@@ -34,9 +34,10 @@ export class UsersService {
   }
 
   // Get all users (excluding archived by default)
-  async findAll(includeArchived = false): Promise<User[]> {
+  async findAll(includeArchived = false, sortOrder?: string): Promise<User[]> {
     const filter = includeArchived ? {} : { status: { $ne: Status.ARCHIVED } };
-    return this.userModel.find(filter).exec();
+    const sort = sortOrder === 'asc' ? { createdAt: 1 as const } : { createdAt: -1 as const };
+    return this.userModel.find(filter).sort(sort).exec();
   }
 
   // Get only archived users
@@ -82,7 +83,7 @@ export class UsersService {
   // Update user
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.userModel
-      .findByIdAndUpdate(id, updateUserDto, { new: true })
+      .findByIdAndUpdate(id, updateUserDto, { returnDocument: 'after' })
       .exec();
     if (!user) throw new NotFoundException(`User #${id} not found`);
     return user;

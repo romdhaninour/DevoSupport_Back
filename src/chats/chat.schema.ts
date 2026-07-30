@@ -13,11 +13,17 @@ export class Chat {
   @Prop({ required: true, type: Types.ObjectId, ref: 'User' })
   receiver: Types.ObjectId;
 
-  @Prop({ required: true })
+  @Prop()
   message: string;
 
   @Prop({ default: false })
   read: boolean;
+
+  @Prop()
+  imageUrl?: string;
+
+  @Prop({ type: [{ emoji: String, userId: { type: Types.ObjectId, ref: 'User' } }], default: [] })
+  reactions: { emoji: string; userId: Types.ObjectId }[];
 
   @Prop({ default: Date.now })
   createdAt: Date;

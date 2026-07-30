@@ -8,6 +8,8 @@ import { DevicesModule } from './devices/devices.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { ChatsModule } from './chats/chats.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { DeviceTypesModule } from './device-types/device-types.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     TicketsModule,
     ChatsModule,
     NotificationsModule,
+    DashboardModule,
+    DeviceTypesModule,
   ],
   controllers: [AppController],
 })

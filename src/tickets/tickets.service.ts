@@ -76,6 +76,8 @@ export class TicketsService {
         userEmail: user.email,
         userName: creatorName,
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        referenceId: savedTicket._id.toString(),
+        referenceModel: 'Ticket',
       });
     } catch (e) {
       console.error('Failed to create ticket notification', e);
@@ -93,6 +95,7 @@ export class TicketsService {
     startDate?: string,
     endDate?: string,
     mine?: boolean,
+    sortOrder?: string,
   ): Promise<{ tickets: Ticket[]; total: number }> {
     let query = this.ticketModel.find();
 
@@ -126,11 +129,28 @@ export class TicketsService {
       .populate('createdBy', 'nom prenom email')
       .populate('assignedTo', 'nom prenom email')
       .populate('comments.author', 'nom prenom email')
-      .sort({ createdAt: -1 })
+      .sort(sortOrder === 'asc' ? { createdAt: 1 as const } : { createdAt: -1 as const })
       .exec();
     const total = await this.ticketModel.countDocuments(query.getFilter()).exec();
 
     return { tickets, total };
+  }
+
+  async findByUserId(targetUserId: string): Promise<Ticket[]> {
+    const tickets = await this.ticketModel.find({
+      $or: [
+        { createdBy: new Types.ObjectId(targetUserId) },
+        { assignedTo: new Types.ObjectId(targetUserId) },
+      ],
+    })
+      .populate('device', 'name type')
+      .populate('createdBy', 'nom prenom email')
+      .populate('assignedTo', 'nom prenom email')
+      .populate('comments.author', 'nom prenom email')
+      .sort({ createdAt: -1 })
+      .exec();
+
+    return tickets;
   }
 
   async findOne(id: string, userId: string, role: Role): Promise<Ticket> {
@@ -202,6 +222,8 @@ export class TicketsService {
         type: NotificationType.TICKET_STATUS_CHANGED,
         userEmail: ticket.createdBy.toString(),
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        referenceId: savedTicket._id.toString(),
+        referenceModel: 'Ticket',
       });
     } catch (e) {
       console.error('Failed to create ticket status notification', e);
@@ -244,6 +266,8 @@ export class TicketsService {
         userEmail: assignedUser.email,
         userName: assignedToName,
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        referenceId: savedTicket._id.toString(),
+        referenceModel: 'Ticket',
       });
     } catch (e) {
       console.error('Failed to create ticket assignment notification', e);
@@ -295,6 +319,8 @@ export class TicketsService {
         userEmail: user?.email || '',
         userName: commenterName,
         recipientRoles: [NotificationRecipientRole.ADMIN, NotificationRecipientRole.IT],
+        referenceId: savedTicket._id.toString(),
+        referenceModel: 'Ticket',
       });
     } catch (e) {
       console.error('Failed to create ticket comment notification', e);
