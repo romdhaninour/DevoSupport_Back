@@ -151,11 +151,11 @@ export class UsersService {
         for (const header of headers) {
           const colIndex = headerMap[header.toLowerCase()];
           if (colIndex) {
-            const val = row.getCell(colIndex).value;
+            const val = row.getCell(colIndex).value as any;
             if (typeof val === 'object' && val !== null) {
               if (val.text) return val.text.toString().trim();
               if (val.richText) return val.richText.map((t: any) => t.text || '').join('').trim();
-              return (val as any).toString?.()?.trim() || '';
+              return val.toString?.()?.trim() || '';
             }
             return val?.toString()?.trim() || '';
           }
