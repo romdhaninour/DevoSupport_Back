@@ -24,6 +24,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Run tests (non-blocking)
+      - name: Run tests
         run: npx jest --ci --runInBand
-        continue-on-error: true

@@ -171,7 +171,7 @@ describe('TicketsService', () => {
 
       expect(result).toBeDefined();
       expect(devicesService.findOne).toHaveBeenCalledWith('507f1f77bcf86cd799439012');
-      expect(devicesService.updateStatus).toHaveBeenCalledWith('507f1f77bcf86cd799439012', { status: 'maintenance' });
+      expect(devicesService.updateStatus).not.toHaveBeenCalled();
     });
 
     it('should throw NotFoundException when device does not exist', async () => {

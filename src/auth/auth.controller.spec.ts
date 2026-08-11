@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { Role, Status } from '../users/user.schema';
@@ -30,6 +31,12 @@ describe('AuthController', () => {
           useValue: {
             validateGoogleUser: jest.fn(),
             login: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn().mockReturnValue('http://localhost:4200'),
           },
         },
       ],

@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './google.strategy';
 import { AuthService } from './auth.service';
 import { Role, Status } from '../users/user.schema';
@@ -40,6 +41,19 @@ describe('GoogleStrategy', () => {
           useValue: {
             validateGoogleUser: jest.fn(),
             login: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string) => {
+              const values: Record<string, string> = {
+                GOOGLE_CLIENT_ID: 'test-client-id',
+                GOOGLE_CLIENT_SECRET: 'test-client-secret',
+                GOOGLE_CALLBACK_URL: 'http://localhost:3000/auth/google/callback',
+              };
+              return values[key];
+            }),
           },
         },
       ],

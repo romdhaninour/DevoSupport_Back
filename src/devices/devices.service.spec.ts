@@ -474,33 +474,36 @@ describe('DevicesService', () => {
 
   describe('findOneForUser', () => {
     it('returns device for IT role without access check', async () => {
-      const mockDevice = { _id: 'device-1', name: 'Laptop', assignedTo: 'other-user' };
+      const plainDevice = { _id: 'device-1', name: 'Laptop', assignedTo: 'other-user' };
+      const mockDevice = { ...plainDevice, toObject: jest.fn(() => ({ ...plainDevice })) };
       deviceModel.findById.mockReturnValue({
         exec: jest.fn().mockResolvedValue(mockDevice),
       });
 
       const result = await service.findOneForUser('it-1', Role.IT, 'device-1');
-      expect(result).toEqual(mockDevice);
+      expect(result).toEqual({ ...plainDevice, assignedToName: 'other-user' });
     });
 
     it('returns device for ADMIN role without access check', async () => {
-      const mockDevice = { _id: 'device-1', name: 'Laptop', assignedTo: 'other-user' };
+      const plainDevice = { _id: 'device-1', name: 'Laptop', assignedTo: 'other-user' };
+      const mockDevice = { ...plainDevice, toObject: jest.fn(() => ({ ...plainDevice })) };
       deviceModel.findById.mockReturnValue({
         exec: jest.fn().mockResolvedValue(mockDevice),
       });
 
       const result = await service.findOneForUser('admin-1', Role.ADMIN, 'device-1');
-      expect(result).toEqual(mockDevice);
+      expect(result).toEqual({ ...plainDevice, assignedToName: 'other-user' });
     });
 
     it('returns device for consultant when assigned to them', async () => {
-      const mockDevice = { _id: 'device-1', name: 'Laptop', assignedTo: 'cons-1' };
+      const plainDevice = { _id: 'device-1', name: 'Laptop', assignedTo: 'cons-1' };
+      const mockDevice = { ...plainDevice, toObject: jest.fn(() => ({ ...plainDevice })) };
       deviceModel.findById.mockReturnValue({
         exec: jest.fn().mockResolvedValue(mockDevice),
       });
 
       const result = await service.findOneForUser('cons-1', Role.CONSULTANT, 'device-1');
-      expect(result).toEqual(mockDevice);
+      expect(result).toEqual({ ...plainDevice, assignedToName: 'cons-1' });
     });
 
     it('throws ForbiddenException for consultant when device not assigned to them', async () => {

@@ -304,7 +304,7 @@ describe('UsersController', () => {
       expect(res.send).toHaveBeenCalledWith(mockBuffer);
     });
 
-    it('returns 500 when fetch fails', async () => {
+    it('returns 404 when fetch fails', async () => {
       service.findOne.mockResolvedValue({
         ...mockUser,
         profilePicture: 'https://example.com/pic.jpg',
@@ -319,11 +319,11 @@ describe('UsersController', () => {
 
       await controller.getProfilePicture('user-1', res as any);
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.send).toHaveBeenCalledWith('Failed to fetch profile picture');
+      expect(res.status).toHaveBeenCalledWith(404);
+      expect(res.send).toHaveBeenCalledWith('Profile picture not found');
     });
 
-    it('returns 500 when response is not ok', async () => {
+    it('returns 404 when response is not ok', async () => {
       service.findOne.mockResolvedValue({
         ...mockUser,
         profilePicture: 'https://example.com/pic.jpg',
@@ -341,7 +341,7 @@ describe('UsersController', () => {
 
       await controller.getProfilePicture('user-1', res as any);
 
-      expect(res.status).toHaveBeenCalledWith(500);
+      expect(res.status).toHaveBeenCalledWith(404);
     });
   });
 
