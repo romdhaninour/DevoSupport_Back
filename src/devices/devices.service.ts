@@ -159,13 +159,12 @@ export class DevicesService implements OnApplicationBootstrap {
       serialNumber: createDeviceDto.serialNumber || `AUTO-${Date.now()}`,
     };
 
-    // Auto-calculate nextMaintenanceDate if maintenance is enabled
+    // Auto-calculate maintenance dates if maintenance is enabled
     if (payload.maintenanceEnabled && payload.maintenanceStartDate) {
       const startDate = new Date(payload.maintenanceStartDate);
       if (payload.maintenanceFrequency) {
-        const freqMonths = this.getFrequencyMonths(payload.maintenanceFrequency);
-        const nextDate = new Date(startDate);
-        nextDate.setMonth(nextDate.getMonth() + freqMonths);
+        const nextDate = this.addFrequencyMonths(startDate, payload.maintenanceFrequency);
+        payload.maintenanceEndDate = nextDate;
         payload.nextMaintenanceDate = nextDate;
       } else if (payload.maintenanceEndDate) {
         payload.nextMaintenanceDate = new Date(payload.maintenanceEndDate);
@@ -345,13 +344,12 @@ export class DevicesService implements OnApplicationBootstrap {
   ): Promise<Device> {
     const payload: any = { ...updateDeviceDto };
 
-    // Auto-calculate nextMaintenanceDate if maintenance fields are being updated
+    // Auto-calculate maintenance dates if maintenance fields are being updated
     if (payload.maintenanceEnabled && payload.maintenanceStartDate) {
       const startDate = new Date(payload.maintenanceStartDate);
       if (payload.maintenanceFrequency) {
-        const freqMonths = this.getFrequencyMonths(payload.maintenanceFrequency);
-        const nextDate = new Date(startDate);
-        nextDate.setMonth(nextDate.getMonth() + freqMonths);
+        const nextDate = this.addFrequencyMonths(startDate, payload.maintenanceFrequency);
+        payload.maintenanceEndDate = nextDate;
         payload.nextMaintenanceDate = nextDate;
       } else if (payload.maintenanceEndDate) {
         payload.nextMaintenanceDate = new Date(payload.maintenanceEndDate);
@@ -758,11 +756,22 @@ export class DevicesService implements OnApplicationBootstrap {
 
     const payload: any = {};
     if (updateDto.maintenanceDescription !== undefined) payload.maintenanceDescription = updateDto.maintenanceDescription;
-    if (updateDto.maintenanceEndDate) {
-      payload.maintenanceEndDate = new Date(updateDto.maintenanceEndDate);
-    }
+
     if (updateDto.maintenanceFrequency) {
+      // Deadline follows the frequency: recalculate from the current base date
       payload.maintenanceFrequency = updateDto.maintenanceFrequency;
+      const baseDate =
+        (device.maintenanceStartDate as Date) ||
+        (device.nextMaintenanceDate as Date) ||
+        (device.maintenanceEndDate as Date) ||
+        new Date();
+      const nextDate = this.addFrequencyMonths(baseDate, updateDto.maintenanceFrequency as MaintenanceFrequency);
+      payload.maintenanceEndDate = nextDate;
+      payload.nextMaintenanceDate = nextDate;
+    } else if (updateDto.maintenanceEndDate) {
+      const endDate = new Date(updateDto.maintenanceEndDate);
+      payload.maintenanceEndDate = endDate;
+      payload.nextMaintenanceDate = endDate;
     }
 
     return this.deviceModel.findByIdAndUpdate(id, payload, { returnDocument: 'after' }).exec();
@@ -810,6 +819,12 @@ export class DevicesService implements OnApplicationBootstrap {
     }
 
     return updated;
+  }
+
+  private addFrequencyMonths(date: Date, frequency: MaintenanceFrequency): Date {
+    const next = new Date(date);
+    next.setMonth(next.getMonth() + this.getFrequencyMonths(frequency));
+    return next;
   }
 
   private getFrequencyMonths(frequency: MaintenanceFrequency): number {

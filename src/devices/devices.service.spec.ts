@@ -1415,8 +1415,9 @@ describe('DevicesService', () => {
         'device-1',
         {
           maintenanceDescription: 'Fixed',
-          maintenanceEndDate: expect.any(Date),
           maintenanceFrequency: '6months',
+          maintenanceEndDate: expect.any(Date),
+          nextMaintenanceDate: expect.any(Date),
         },
         { returnDocument: 'after' },
       );
@@ -1461,14 +1462,23 @@ describe('DevicesService', () => {
 
       expect(deviceModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'device-1',
-        { maintenanceEndDate: expect.any(Date) },
+        {
+          maintenanceEndDate: expect.any(Date),
+          nextMaintenanceDate: expect.any(Date),
+        },
         { returnDocument: 'after' },
       );
     });
 
-    it('updates frequency individually', async () => {
+    it('updates frequency individually and recalculates the deadline', async () => {
       deviceModel.findById.mockReturnValue({
-        exec: jest.fn().mockResolvedValue({ _id: 'device-1' }),
+        exec: jest.fn().mockResolvedValue({
+          _id: 'device-1',
+          maintenanceStartDate: new Date('2026-01-01'),
+          maintenanceEndDate: new Date('2026-01-01'),
+          nextMaintenanceDate: new Date('2026-01-01'),
+          maintenanceFrequency: '1year',
+        }),
       });
       deviceModel.findByIdAndUpdate.mockReturnValue({
         exec: jest.fn().mockResolvedValue({ _id: 'device-1', maintenanceFrequency: '1year' }),
@@ -1478,7 +1488,11 @@ describe('DevicesService', () => {
 
       expect(deviceModel.findByIdAndUpdate).toHaveBeenCalledWith(
         'device-1',
-        { maintenanceFrequency: '1year' },
+        {
+          maintenanceFrequency: '1year',
+          maintenanceEndDate: expect.any(Date),
+          nextMaintenanceDate: expect.any(Date),
+        },
         { returnDocument: 'after' },
       );
     });
