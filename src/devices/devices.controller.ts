@@ -329,11 +329,12 @@ export class DevicesController {
   async markDeviceAsMaintained(
     @Req() req: any,
     @Param('id') id: string,
+    @Body() body: { performedDate?: string },
   ) {
     const userRole = req.user?.role;
     if (userRole !== Role.IT && userRole !== Role.ADMIN) {
       throw new ForbiddenException('Only IT staff can mark devices as maintained');
     }
-    return this.devicesService.markDeviceAsMaintained(id);
+    return this.devicesService.markDeviceAsMaintained(id, body?.performedDate);
   }
 }

@@ -433,9 +433,9 @@ describe('DevicesController', () => {
       const updated = { ...dto, lastMaintained: new Date() };
       (service.markDeviceAsMaintained as jest.Mock).mockResolvedValue(updated);
 
-      const result = await controller.markDeviceAsMaintained(itReq as any, 'device-1');
+      const result = await controller.markDeviceAsMaintained(itReq as any, 'device-1', { performedDate: '2026-01-15' });
 
-      expect(service.markDeviceAsMaintained).toHaveBeenCalledWith('device-1');
+      expect(service.markDeviceAsMaintained).toHaveBeenCalledWith('device-1', '2026-01-15');
       expect(result).toEqual(updated);
     });
 

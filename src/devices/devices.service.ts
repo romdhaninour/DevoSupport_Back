@@ -777,7 +777,7 @@ export class DevicesService implements OnApplicationBootstrap {
     return this.deviceModel.findByIdAndUpdate(id, payload, { returnDocument: 'after' }).exec();
   }
 
-  async markDeviceAsMaintained(id: string): Promise<Device> {
+  async markDeviceAsMaintained(id: string, performedDate?: string | Date): Promise<Device> {
     const device = await this.deviceModel.findById(id).exec();
     if (!device) {
       throw new NotFoundException('Device not found');
@@ -787,7 +787,10 @@ export class DevicesService implements OnApplicationBootstrap {
       throw new BadRequestException('Device does not have maintenance enabled');
     }
 
-    const now = new Date();
+    const now = performedDate ? new Date(performedDate) : new Date();
+    if (isNaN(now.getTime())) {
+      throw new BadRequestException('Invalid performed date');
+    }
     let nextEndDate: Date;
 
     if (device.maintenanceFrequency && device.maintenanceStartDate) {
