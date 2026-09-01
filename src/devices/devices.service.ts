@@ -793,10 +793,9 @@ export class DevicesService implements OnApplicationBootstrap {
     }
     let nextEndDate: Date;
 
-    if (device.maintenanceFrequency && device.maintenanceStartDate) {
+    if (device.maintenanceFrequency) {
       const freqMonths = this.getFrequencyMonths(device.maintenanceFrequency);
-      nextEndDate = new Date(now);
-      nextEndDate.setMonth(nextEndDate.getMonth() + freqMonths);
+      nextEndDate = this.addFrequencyMonths(now, device.maintenanceFrequency);
     } else if (device.maintenanceStartDate && device.maintenanceEndDate) {
       const duration = device.maintenanceEndDate.getTime() - device.maintenanceStartDate.getTime();
       nextEndDate = new Date(now.getTime() + duration);

@@ -1548,6 +1548,29 @@ describe('DevicesService', () => {
       expect(result).toBeDefined();
     });
 
+    it('computes next date from the chosen performed date plus frequency', async () => {
+      deviceModel.findById.mockReturnValue({
+        exec: jest.fn().mockResolvedValue({
+          _id: 'device-1',
+          maintenanceEnabled: true,
+          maintenanceFrequency: '6months',
+          maintenanceStartDate: new Date('2025-01-01'),
+        }),
+      });
+      deviceModel.findByIdAndUpdate.mockImplementation((_id, payload) => ({
+        exec: jest.fn().mockResolvedValue({ _id: 'device-1', ...payload }),
+      }));
+
+      const result = await service.markDeviceAsMaintained('device-1', '2026-06-15');
+
+      const expectedNext = new Date('2026-06-15');
+      expectedNext.setMonth(expectedNext.getMonth() + 6);
+      expect(result.nextMaintenanceDate.getTime()).toBe(expectedNext.getTime());
+      expect(result.maintenanceEndDate.getTime()).toBe(expectedNext.getTime());
+      expect(result.lastMaintenanceDate.getTime()).toBe(new Date('2026-06-15').getTime());
+      expect(result.maintenanceStartDate.getTime()).toBe(new Date('2026-06-15').getTime());
+    });
+
     it('uses duration to calculate next date when maintenanceStartDate and maintenanceEndDate exist', async () => {
       deviceModel.findById.mockReturnValue({
         exec: jest.fn().mockResolvedValue({
